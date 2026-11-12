@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="group_einvoice_manager" model="res.groups">
+        <field name="name">E-Invoice Manager</field>
+    </record>
+    <record id="group_einvoice_user" model="res.groups">
+        <field name="name">E-Invoice User</field>
+    </record>
+    <record id="group_einvoice_security" model="res.groups">
+        <field name="name">E-Invoice Security</field>
+        <field name="comment">Manage digital certificates and cryptographic keys for e-invoicing.</field>
+    </record>
+</odoo>

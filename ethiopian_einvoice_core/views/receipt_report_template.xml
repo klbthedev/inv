@@ -1,0 +1,865 @@
+<odoo>
+    <template id="report_receipt_dummy">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <div>
+                    <h2>Receipt for <t t-esc="doc.name"/></h2>
+                    <p>Customer: <t t-esc="doc.partner_id.name"/></p>
+                    <p>Total: <t t-esc="doc.amount_total"/></p>
+                    <p>Date: <t t-esc="doc.invoice_date"/></p>
+                    <p>Receipt ID: <t t-esc="doc.id"/></p>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <!-- Shared EI styling for receipts (Sales + Withholding) -->
+    <template id="ei_receipt_layout">
+        <t t-set="cfg" t-value="doc.env['einvoice.config'].sudo().search([('company_id','=',doc.company_id.id),('active','=',True)], limit=1)"/>
+        <t t-set="tax_totals" t-value="doc.tax_totals or {}"/>
+        <div class="page" style="font-size: 11px; line-height: 1.45; padding: 10px 14px; color: #111;">
+            <style>
+                .ei-title { font-size: 18px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+                .ei-subtitle { font-size: 11px; letter-spacing: .6px; color: #444; margin-top: 2px; }
+                .ei-muted { color: #555; }
+                .ei-card { border: 1px solid #111; border-radius: 12px; padding: 12px; }
+                .ei-chip { display:inline-block; border:1px solid #111; border-radius: 999px; padding: 3px 10px; font-size: 10px; letter-spacing: .6px; }
+                .ei-kv { font-size: 10px; line-height: 1.5; }
+                .ei-hr { height: 1px; background: #111; opacity: .15; margin: 12px 0; }
+                .ei-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 9.5px; }
+                .ei-table thead th { background: #111; color:#fff; padding: 8px 8px; font-weight: 700; letter-spacing: .4px; border: none; }
+                .ei-table tbody td { padding: 8px 8px; border-bottom: 1px solid rgba(0,0,0,.12); vertical-align: top; }
+                .ei-table tbody tr:nth-child(even) td { background: rgba(0,0,0,.02); }
+                .ei-right { text-align: right; }
+                .ei-center { text-align: center; }
+                .ei-totals { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 10px; }
+                .ei-totals td { padding: 7px 8px; border-bottom: 1px solid rgba(0,0,0,.12); }
+                .ei-totals tr:last-child td { border-bottom: none; }
+                .ei-totals .label { color:#333; }
+                .ei-totals .value { text-align:right; font-weight: 700; }
+                .ei-footer { font-size: 9px; color: #444; margin-top: 10px; }
+            </style>
+
+            <!-- COMPANY LOGO + ADDRESS -->
+            <div class="row" style="margin-bottom: 12px; align-items: flex-start;">
+                <div class="col-5">
+                    <t t-if="doc.company_id.logo">
+                        <span t-field="doc.company_id.logo" t-options="{'widget': 'image', 'style': 'max-width: 320px; max-height: 140px;'}"/>
+                    </t>
+                </div>
+                <div class="col-7 text-end" style="font-size: 11px;">
+                    <p class="mb-0" style="font-size: 13px;"><strong><t t-esc="doc.company_id.name"/></strong></p>
+                    <p class="mb-0" t-if="doc.company_id.street"><t t-esc="doc.company_id.street"/></p>
+                    <p class="mb-0" t-if="doc.company_id.phone">Tel: <t t-esc="doc.company_id.phone"/></p>
+                    <p class="mb-0" t-if="doc.company_id.website"><t t-esc="doc.company_id.website"/></p>
+                </div>
+            </div>
+
+            <!-- TITLE -->
+            <div class="ei-card" style="margin-bottom: 10px;">
+                <div class="row">
+                    <div class="col-8">
+                        <div class="ei-title"><t t-esc="receipt_title"/> </div>
+                        <div class="ei-subtitle">Electronic receipt summary</div>
+                    </div>
+                    <div class="col-4 text-end" style="padding-top: 2px;">
+                        <span class="ei-chip">E-RECEIPT</span>
+                        <t t-if="doc.transaction_type">
+                            <span class="ei-chip" style="margin-left: 6px;"><t t-esc="doc.transaction_type"/></span>
+                        </t>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IDENTIFIERS + QR -->
+            <div class="ei-card" style="margin-bottom: 12px;">
+                <div class="row">
+                    <div class="col-7 ei-kv">
+                        <div><b>IRN</b>: <t t-esc="doc.x_einvoice_irn or ''"/></div>
+                        <div><b>Doc#</b>: <t t-esc="doc.x_einvoice_document_number or doc.name"/></div>
+                        <div><b>Source Number</b>: <t t-esc="(cfg and cfg.system_number) or ''"/></div>
+                        <div><b>Date/time</b>: <t t-esc="doc.invoice_date"/></div>
+                        <t t-if="receipt_rrn">
+                            <div><b>RRN</b>: <t t-esc="receipt_rrn"/></div>
+                        </t>
+                    </div>
+                    <div class="col-5 text-end">
+                        <t t-if="receipt_body_template == 'ethiopian_einvoice_core.ei_receipt_body_sales'">
+                            <t t-if="doc.x_einvoice_receipt_qr">
+                                <span t-field="doc.x_einvoice_receipt_qr" t-options="{'widget': 'image', 'style': 'width: 125px; height: 125px;'}"/>
+                            </t>
+                            <t t-elif="doc.x_einvoice_signed_qr">
+                                <span t-field="doc.x_einvoice_signed_qr" t-options="{'widget': 'image', 'style': 'width: 125px; height: 125px;'}"/>
+                            </t>
+                        </t>
+                        <t t-elif="receipt_body_template == 'ethiopian_einvoice_core.ei_receipt_body_withholding'">
+                            <t t-if="doc.x_withholding_qr">
+                                <span t-field="doc.x_withholding_qr" t-options="{'widget': 'image', 'style': 'width: 125px; height: 125px;'}"/>
+                            </t>
+                        </t>
+                        <div class="ei-muted" style="font-size: 9px; margin-top: 6px;">Scan to verify</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SELLER / BUYER -->
+            <div class="row" style="margin-bottom: 10px;">
+                <div class="col-6">
+                    <div class="ei-card ei-kv">
+                        <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 4px;">SELLER</div>
+                        <div><b>Name</b>: <t t-esc="doc.company_id.name"/></div>
+                        <div><b>Seller TIN</b>: <t t-esc="(cfg and cfg.seller_tin) or (doc.company_id.vat or '')"/></div>
+                        <div><b>Seller VAT Reg.No</b>: <t t-esc="(cfg and cfg.vat_number) or (doc.company_id.vat or '')"/></div>
+                        <div class="ei-hr"></div>
+                        <div><b>Zone/Sub</b>: <t t-esc="(cfg and cfg.zone) or '—'"/></div>
+                        <div><b>Wereda</b>: <t t-esc="(cfg and cfg.wereda) or '—'"/></div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="ei-card ei-kv">
+                        <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 4px;">BUYER</div>
+                        <div><b>Name</b>: <t t-esc="doc.partner_id.name"/></div>
+                        <div><b>Buyer TIN</b>: <t t-esc="doc.partner_id.vat or doc.buyer_vat or '—'"/></div>
+                        <div class="ei-hr"></div>
+                        <div><b>City/Town</b>: <t t-esc="doc.partner_id.city or 'N/A'"/></div>
+                        <div><b>H/No</b>: <t t-esc="doc.partner_id.street or 'N/A'"/></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RECEIPT-SPECIFIC CONTENT -->
+            <t t-if="receipt_body_template == 'ethiopian_einvoice_core.ei_receipt_body_sales'">
+                <t t-call="ethiopian_einvoice_core.ei_receipt_body_sales"/>
+            </t>
+            <t t-elif="receipt_body_template == 'ethiopian_einvoice_core.ei_receipt_body_withholding'">
+                <t t-call="ethiopian_einvoice_core.ei_receipt_body_withholding"/>
+            </t>
+
+            <!-- PAYMENT -->
+            <div class="ei-card" style="margin-bottom: 8px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 8px;">
+                <tr>
+                    <td style="padding: 4px 2px;"><strong>Mode of payment:</strong> <t t-esc="doc.mode_of_payment or '—'"/></td>
+                    <td style="padding: 4px 2px;"><strong>Type/Method:</strong> <t t-esc="doc.payment_term or 'IMMEDIATE'"/></td>
+                    <td style="padding: 4px 2px;"><strong>Cashier Name:</strong> <t t-esc="(doc.x_clicked_by_id and doc.x_clicked_by_id.name) or '—'"/></td>
+                </tr>
+                </table>
+            </div>
+
+            <div class="ei-footer">
+                Generated by <t t-esc="doc.company_id.name"/> | Page 1 of 1
+            </div>
+        </div>
+    </template>
+
+    <template id="ei_receipt_body_sales">
+        <!-- Lines -->
+        <table class="ei-table" style="margin-bottom: 12px;">
+            <thead>
+                <tr>
+                    <th style="width: 4%;">No.</th>
+                    <th style="width: 30%;">Description</th>
+                    <th style="width: 10%;">Nature</th>
+                    <th style="width: 8%;">UoM</th>
+                    <th class="ei-right" style="width: 8%;">Qty</th>
+                    <th class="ei-right" style="width: 12%;">Unit Price</th>
+                    <th style="width: 14%;">Tax Code(s)</th>
+                    <th class="ei-right" style="width: 14%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <t t-set="idx" t-value="0"/>
+                <t t-foreach="doc.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))" t-as="line">
+                    <t t-set="idx" t-value="idx + 1"/>
+                    <tr>
+                        <td class="ei-center"><t t-esc="idx"/></td>
+                        <td><t t-esc="line.name"/></td>
+                        <td class="ei-center"><t t-esc="(line.product_id and (line.product_id.type or '').lower()) or 'goods'"/></td>
+                        <td class="ei-center"><t t-esc="line.product_uom_id.name or ''"/></td>
+                        <td class="ei-right"><t t-esc="'%.2f' % line.quantity"/></td>
+                        <td class="ei-right"><t t-esc="'%.2f' % line.price_unit"/></td>
+                        <td class="ei-center"><t t-esc="', '.join(line.tax_ids.mapped('name')) if line.tax_ids else 'VAT0'"/></td>
+                        <td class="ei-right"><t t-esc="'%.2f' % line.price_total"/></td>
+                    </tr>
+                </t>
+            </tbody>
+        </table>
+
+        <!-- Totals -->
+        <div class="row" style="margin-bottom: 10px;">
+            <div class="col-7"></div>
+            <div class="col-5">
+                <div class="ei-card">
+                    <table class="ei-totals">
+                        <tr>
+                            <td class="label"><strong>Total</strong></td>
+                            <td class="value"><t t-esc="'%.2f' % doc.amount_total"/></td>
+                        </tr>
+                        <tr>
+                            <td class="label">Taxable total</td>
+                            <td class="value"><t t-esc="'%.2f' % doc.amount_untaxed"/></td>
+                        </tr>
+                        <t t-if="tax_totals.get('subtotals')">
+                            <t t-foreach="tax_totals.get('subtotals')" t-as="st">
+                                <t t-foreach="st.get('tax_groups') or []" t-as="tg">
+                                    <tr>
+                                        <td class="label"><t t-esc="tg.get('group_name')"/></td>
+                                        <td class="value"><t t-esc="'%.2f' % (tg.get('tax_amount_currency') or 0.0)"/></td>
+                                    </tr>
+                                </t>
+                            </t>
+                        </t>
+                        <tr>
+                            <td class="label"><strong>Total including tax</strong></td>
+                            <td class="value"><strong><t t-esc="'%.2f' % doc.amount_total"/></strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template id="ei_receipt_body_withholding">
+        <div class="ei-card" style="margin-bottom: 12px;">
+            <div class="ei-kv">
+                <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 6px;">WITHHOLDING DETAILS</div>
+                <div><b>Type</b>: TWTH</div>
+                <div><b>RRN</b>: <t t-esc="doc.x_withholding_rrn or ''"/></div>
+                <div><b>Pre-Tax Amount</b>: <t t-esc="'%.2f' % doc.amount_untaxed"/></div>
+                <div><b>Withholding Amount</b>: <t t-esc="'%.2f' % (doc.amount_total - doc.amount_untaxed)"/></div>
+                <div><b>Invoice IRN</b>: <t t-esc="doc.x_einvoice_irn or ''"/></div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Sales Receipt -->
+    <template id="report_sales_receipt">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="receipt_title" t-value="'SALES RECEIPT'"/>
+                <t t-set="receipt_rrn" t-value="doc.x_einvoice_receipt_rrn or ''"/>
+                <t t-set="receipt_qr" t-value="doc.x_einvoice_receipt_qr or doc.x_einvoice_signed_qr"/>
+                <t t-set="receipt_body_template" t-value="'ethiopian_einvoice_core.ei_receipt_body_sales'"/>
+                <t t-call="ethiopian_einvoice_core.ei_receipt_layout"/>
+            </t>
+        </t>
+    </template>
+
+    <!-- Withholding Receipt -->
+    <template id="report_withholding_receipt">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="receipt_title" t-value="'WITHHOLDING RECEIPT'"/>
+                <t t-set="receipt_rrn" t-value="doc.x_withholding_rrn or ''"/>
+                <t t-set="receipt_qr" t-value="doc.x_withholding_qr"/>
+                <t t-set="receipt_body_template" t-value="'ethiopian_einvoice_core.ei_receipt_body_withholding'"/>
+                <t t-call="ethiopian_einvoice_core.ei_receipt_layout"/>
+            </t>
+        </t>
+    </template>
+
+    <!-- Registered E-Invoice -->
+    <template id="report_registered_einvoice">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="cfg" t-value="doc.env['einvoice.config'].sudo().search([('company_id','=',doc.company_id.id),('active','=',True)], limit=1)"/>
+                <t t-set="tax_totals" t-value="doc.tax_totals or {}"/>
+                <div class="page" style="font-size: 12px; line-height: 1.5; padding: 14px 16px; color: #111;">
+
+                    <!-- Style block: keep inline for wkhtmltopdf reliability -->
+                    <style>
+                        .ei-title { font-size: 20px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+                        .ei-subtitle { font-size: 12px; letter-spacing: .6px; color: #444; margin-top: 2px; }
+                        .ei-muted { color: #555; }
+                        .ei-card { border: 1.5px solid #111; border-radius: 12px; padding: 14px; }
+                        .ei-chip { display:inline-block; border:1px solid #111; border-radius: 999px; padding: 4px 12px; font-size: 10.5px; letter-spacing: .6px; }
+                        .ei-kv { font-size: 11px; line-height: 1.55; }
+                        .ei-kv b { letter-spacing: .2px; }
+                        .ei-hr { height: 1px; background: #111; opacity: .15; margin: 14px 0; }
+                        .ei-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 10px; }
+                        .ei-table thead th { background: #111; color:#fff; padding: 10px 8px; font-weight: 700; letter-spacing: .4px; border: none; }
+                        .ei-table tbody td { padding: 10px 8px; border-bottom: 1px solid rgba(0,0,0,.12); vertical-align: top; }
+                        .ei-table tbody tr:nth-child(even) td { background: rgba(0,0,0,.02); }
+                        .ei-right { text-align: right; }
+                        .ei-center { text-align: center; }
+                        .ei-totals { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+                        .ei-totals td { padding: 8px 8px; border-bottom: 1px solid rgba(0,0,0,.12); }
+                        .ei-totals tr:last-child td { border-bottom: none; }
+                        .ei-totals .label { color:#333; }
+                        .ei-totals .value { text-align:right; font-weight: 700; }
+                        .ei-footer { font-size: 10px; color: #444; margin-top: 10px; }
+                    </style>
+
+                    <!-- COMPANY LOGO + ADDRESS -->
+                    <div class="row" style="margin-bottom: 18px; align-items: flex-start;">
+                        <div class="col-5">
+                            <t t-if="doc.company_id.logo">
+                                <span t-field="doc.company_id.logo" t-options="{'widget': 'image', 'style': 'max-width: 340px; max-height: 160px;'}"/>
+                            </t>
+                        </div>
+                        <div class="col-7 text-end" style="font-size: 11px;">
+                            <p class="mb-0" style="font-size: 14px;"><strong><t t-esc="doc.company_id.name"/></strong></p>
+                            <p class="mb-0" t-if="doc.company_id.street"><t t-esc="doc.company_id.street"/></p>
+                            <p class="mb-0" t-if="doc.company_id.phone">Tel: <t t-esc="doc.company_id.phone"/></p>
+                            <p class="mb-0" t-if="doc.company_id.website"><t t-esc="doc.company_id.website"/></p>
+                        </div>
+                    </div>
+
+                    <!-- TITLE -->
+                    <div class="ei-card" style="margin-bottom: 14px;">
+                        <div class="row">
+                            <div class="col-8">
+                                <div class="ei-title"><t t-esc="(doc.transaction_type or 'B2B')"/> TAX INVOICE</div>
+                                <div class="ei-subtitle">Registered electronic invoice summary</div>
+                            </div>
+                            <div class="col-4 text-end" style="padding-top: 2px;">
+                                <span class="ei-chip">E-INVOICE</span>
+                                <t t-if="doc.x_einvoice_status">
+                                    <span class="ei-chip" style="margin-left: 6px;"><t t-esc="doc.x_einvoice_status"/></span>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IDENTIFIERS + QR (single bordered block) -->
+                    <div class="ei-card" style="margin-bottom: 16px;">
+                        <div class="row">
+                            <div class="col-7 ei-kv">
+                                <div><b>IRN</b>: <t t-esc="doc.x_einvoice_irn or ''"/></div>
+                                <div><b>Doc#</b>: <t t-esc="doc.x_einvoice_document_number or doc.name"/></div>
+                                <div><b>MRC</b>: <t t-esc="(cfg and cfg.system_number) or ''"/></div>
+                                <div><b>Date/time</b>: <t t-esc="doc.x_einvoice_ack_date or doc.invoice_date"/></div>
+                            </div>
+                            <div class="col-5 text-end">
+                                <t t-if="doc.x_einvoice_signed_qr">
+                                    <span t-field="doc.x_einvoice_signed_qr" t-options="{'widget': 'image', 'style': 'width: 140px; height: 140px;'}"/>
+                                </t>
+                                <div class="ei-muted" style="font-size: 10px; margin-top: 8px;">Scan to verify</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SELLER / BUYER -->
+                    <div class="row" style="margin-bottom: 10px;">
+                        <div class="col-6">
+                            <div class="ei-card ei-kv">
+                                <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 4px;">SELLER</div>
+                                <div><b>Name</b>: <t t-esc="doc.company_id.name"/></div>
+                                <div><b>Seller TIN</b>: <t t-esc="(cfg and cfg.seller_tin) or (doc.company_id.vat or '')"/></div>
+                                <div><b>Seller VAT Reg.No</b>: <t t-esc="(cfg and cfg.vat_number) or (doc.company_id.vat or '')"/></div>
+                                <div class="ei-hr"></div>
+                                <div><b>City/Town</b>: <t t-esc="doc.company_id.city or '—'"/></div>
+                                <div><b>Zone/Sub</b>: <t t-esc="(cfg and cfg.zone) or '—'"/></div>
+                                <div><b>Wereda</b>: <t t-esc="(cfg and cfg.wereda) or '—'"/></div>
+                                <div><b>Kebele</b>: —</div>
+                                <div><b>H/No</b>: <t t-esc="doc.company_id.street or '—'"/></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="ei-card ei-kv">
+                                <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 4px;">BUYER</div>
+                                <div><b>Name</b>: <t t-esc="doc.partner_id.name"/></div>
+                                <div><b>Buyer TIN</b>: <t t-esc="doc.partner_id.vat or doc.buyer_vat or '—'"/></div>
+                                <div><b>Buyer VAT Reg.No</b>: —</div>
+                                <div class="ei-hr"></div>
+                                <div><b>City/Town</b>: <t t-esc="doc.partner_id.city or doc.buyer_city or 'N/A'"/></div>
+                                <div><b>Zone/Sub</b>: <t t-esc="doc.buyer_region or 'N/A'"/></div>
+                                <div><b>Wereda</b>: <t t-esc="doc.buyer_wereda or 'N/A'"/></div>
+                                <div><b>Kebele</b>: N/A</div>
+                                <div><b>H/No</b>: <t t-esc="doc.buyer_house_number or doc.partner_id.street or 'N/A'"/></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LINES TABLE -->
+                    <table class="ei-table" style="margin-bottom: 12px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 4%;">No.</th>
+                                <th style="width: 28%;">Description</th>
+                                <th style="width: 10%;">Nature</th>
+                                <th style="width: 8%;">UoM</th>
+                                <th class="ei-right" style="width: 8%;">Qty</th>
+                                <th class="ei-right" style="width: 12%;">Unit Price</th>
+                                <th class="ei-right" style="width: 8%;">Discount</th>
+                                <th style="width: 14%;">Tax Code(s)</th>
+                                <th class="ei-right" style="width: 14%;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-set="idx" t-value="0"/>
+                            <t t-foreach="doc.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))" t-as="line">
+                                <t t-set="idx" t-value="idx + 1"/>
+                                <tr>
+                                    <td class="ei-center"><t t-esc="idx"/></td>
+                                    <td><t t-esc="line.name"/></td>
+                                    <td class="ei-center">
+                                        <t t-esc="(line.product_id and (line.product_id.type or '').lower()) or 'goods'"/>
+                                    </td>
+                                    <td class="ei-center"><t t-esc="line.product_uom_id.name or ''"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.quantity"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.price_unit"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % (line.discount or 0.0)"/></td>
+                                    <td class="ei-center">
+                                        <t t-esc="', '.join(line.tax_ids.mapped('name')) if line.tax_ids else 'VAT0'"/>
+                                    </td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.price_total"/></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+
+                    <!-- TOTALS -->
+                    <div class="row" style="margin-bottom: 10px;">
+                        <div class="col-7"></div>
+                        <div class="col-5">
+                            <div class="ei-card">
+                                <table class="ei-totals">
+                                    <tr>
+                                        <td class="label"><strong>Total</strong></td>
+                                        <td class="value"><t t-esc="'%.2f' % doc.amount_total"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Taxable total</td>
+                                        <td class="value"><t t-esc="'%.2f' % doc.amount_untaxed"/></td>
+                                    </tr>
+                                    <t t-if="tax_totals.get('subtotals')">
+                                        <t t-foreach="tax_totals.get('subtotals')" t-as="st">
+                                            <t t-foreach="st.get('tax_groups') or []" t-as="tg">
+                                                <tr>
+                                                    <td class="label"><t t-esc="tg.get('group_name')"/></td>
+                                                    <td class="value"><t t-esc="'%.2f' % (tg.get('tax_amount_currency') or 0.0)"/></td>
+                                                </tr>
+                                            </t>
+                                        </t>
+                                    </t>
+                                    <tr>
+                                        <td class="label"><strong>Total including tax</strong></td>
+                                        <td class="value"><strong><t t-esc="'%.2f' % doc.amount_total"/></strong></td>
+                                    </tr>
+                                </table>
+                                <div class="ei-hr" style="margin: 8px 0;"></div>
+                                <div class="ei-muted" style="font-size: 7px;">
+                                    <b>Total in words</b>: <t t-esc="doc.currency_id.amount_to_text(doc.amount_total).replace(',', '') if doc.currency_id else ''"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PAYMENT -->
+                    <div class="ei-card" style="margin-bottom: 8px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+                        <tr>
+                            <td style="padding: 4px 2px;"><strong>Mode of payment:</strong> <t t-esc="doc.mode_of_payment or '—'"/></td>
+                            <td style="padding: 4px 2px;"><strong>Type/Method:</strong> <t t-esc="doc.payment_term or 'IMMEDIATE'"/></td>
+                            <td style="padding: 4px 2px;"><strong>Cashier Name:</strong> <t t-esc="(doc.x_clicked_by_id and doc.x_clicked_by_id.name) or '—'"/></td>
+                        </tr>
+                        </table>
+                    </div>
+
+                    <div class="ei-footer">
+                        Generated by <t t-esc="doc.company_id.name"/> | Page 1 of 1
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <!-- Credit Note (E-Invoice) -->
+    <template id="report_credit_note_einvoice">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="cfg" t-value="doc.env['einvoice.config'].sudo().search([('company_id','=',doc.company_id.id),('active','=',True)], limit=1)"/>
+                <t t-set="tax_totals" t-value="doc.tax_totals or {}"/>
+                <div class="page" style="font-size: 12px; line-height: 1.5; padding: 14px 16px; color: #111;">
+                    <style>
+                        .ei-title { font-size: 20px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+                        .ei-subtitle { font-size: 12px; letter-spacing: .6px; color: #444; margin-top: 2px; }
+                        .ei-muted { color: #555; }
+                        .ei-card { border: 1.5px solid #111; border-radius: 12px; padding: 14px; }
+                        .ei-chip { display:inline-block; border:1px solid #111; border-radius: 999px; padding: 4px 12px; font-size: 10.5px; letter-spacing: .6px; }
+                        .ei-kv { font-size: 11px; line-height: 1.55; }
+                        .ei-kv b { letter-spacing: .2px; }
+                        .ei-hr { height: 1px; background: #111; opacity: .15; margin: 14px 0; }
+                        .ei-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 10px; }
+                        .ei-table thead th { background: #111; color:#fff; padding: 10px 8px; font-weight: 700; letter-spacing: .4px; border: none; }
+                        .ei-table tbody td { padding: 10px 8px; border-bottom: 1px solid rgba(0,0,0,.12); vertical-align: top; }
+                        .ei-table tbody tr:nth-child(even) td { background: rgba(0,0,0,.02); }
+                        .ei-right { text-align: right; }
+                        .ei-center { text-align: center; }
+                        .ei-totals { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+                        .ei-totals td { padding: 8px 8px; border-bottom: 1px solid rgba(0,0,0,.12); }
+                        .ei-totals tr:last-child td { border-bottom: none; }
+                        .ei-totals .label { color:#333; }
+                        .ei-totals .value { text-align:right; font-weight: 700; }
+                        .ei-footer { font-size: 10px; color: #444; margin-top: 10px; }
+                    </style>
+
+                    <div class="row" style="margin-bottom: 18px; align-items: flex-start;">
+                        <div class="col-5">
+                            <t t-if="doc.company_id.logo">
+                                <span t-field="doc.company_id.logo" t-options="{'widget': 'image', 'style': 'max-width: 340px; max-height: 160px;'}"/>
+                            </t>
+                        </div>
+                        <div class="col-7 text-end" style="font-size: 11px;">
+                            <p class="mb-0" style="font-size: 14px;"><strong><t t-esc="doc.company_id.name"/></strong></p>
+                            <p class="mb-0" t-if="doc.company_id.street"><t t-esc="doc.company_id.street"/></p>
+                            <p class="mb-0" t-if="doc.company_id.phone">Tel: <t t-esc="doc.company_id.phone"/></p>
+                            <p class="mb-0" t-if="doc.company_id.website"><t t-esc="doc.company_id.website"/></p>
+                        </div>
+                    </div>
+
+                    <div class="ei-card" style="margin-bottom: 14px;">
+                        <div class="row">
+                            <div class="col-8">
+                                <div class="ei-title">CREDIT NOTE</div>
+                                <div class="ei-subtitle">Registered electronic credit note summary</div>
+                            </div>
+                            <div class="col-4 text-end" style="padding-top: 2px;">
+                                <span class="ei-chip">E-INVOICE</span>
+                                <t t-if="doc.x_einvoice_credit_status or doc.x_einvoice_cn_status">
+                                    <span class="ei-chip" style="margin-left: 6px;">
+                                        <t t-esc="doc.x_einvoice_credit_status or doc.x_einvoice_cn_status"/>
+                                    </span>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ei-card" style="margin-bottom: 16px;">
+                        <div class="row">
+                            <div class="col-7 ei-kv">
+                                <div><b>IRN</b>: <t t-esc="doc.x_einvoice_credit_irn or doc.x_einvoice_cn_irn or ''"/></div>
+                                <div><b>Doc#</b>: <t t-esc="doc.x_einvoice_credit_document_number or doc.x_einvoice_cn_document_number or doc.name"/></div>
+                                <div><b>MRC</b>: <t t-esc="(cfg and cfg.system_number) or ''"/></div>
+                                <div><b>Date/time</b>: <t t-esc="doc.x_einvoice_credit_ack_date or doc.x_einvoice_cn_ack_date or doc.invoice_date"/></div>
+                            </div>
+                            <div class="col-5 text-end">
+                                <t t-if="doc.x_einvoice_credit_signed_qr">
+                                    <span t-field="doc.x_einvoice_credit_signed_qr" t-options="{'widget': 'image', 'style': 'width: 140px; height: 140px;'}"/>
+                                </t>
+                                <t t-elif="doc.x_einvoice_cn_signed_qr">
+                                    <span t-field="doc.x_einvoice_cn_signed_qr" t-options="{'widget': 'image', 'style': 'width: 140px; height: 140px;'}"/>
+                                </t>
+                                <div class="ei-muted" style="font-size: 10px; margin-top: 8px;">Scan to verify</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row" style="margin-bottom: 10px;">
+                        <div class="col-6">
+                            <div class="ei-card ei-kv">
+                                <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 4px;">SELLER</div>
+                                <div><b>Name</b>: <t t-esc="doc.company_id.name"/></div>
+                                <div><b>Seller TIN</b>: <t t-esc="(cfg and cfg.seller_tin) or (doc.company_id.vat or '')"/></div>
+                                <div><b>Seller VAT Reg.No</b>: <t t-esc="(cfg and cfg.vat_number) or (doc.company_id.vat or '')"/></div>
+                                <div class="ei-hr"></div>
+                                <div><b>City/Town</b>: <t t-esc="doc.company_id.city or '—'"/></div>
+                                <div><b>Zone/Sub</b>: <t t-esc="(cfg and cfg.zone) or '—'"/></div>
+                                <div><b>Wereda</b>: <t t-esc="(cfg and cfg.wereda) or '—'"/></div>
+                                <div><b>Kebele</b>: —</div>
+                                <div><b>H/No</b>: <t t-esc="doc.company_id.street or '—'"/></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="ei-card ei-kv">
+                                <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 4px;">BUYER</div>
+                                <div><b>Name</b>: <t t-esc="doc.partner_id.name"/></div>
+                                <div><b>Buyer TIN</b>: <t t-esc="doc.partner_id.vat or doc.buyer_vat or '—'"/></div>
+                                <div><b>Buyer VAT Reg.No</b>: —</div>
+                                <div class="ei-hr"></div>
+                                <div><b>City/Town</b>: <t t-esc="doc.partner_id.city or doc.buyer_city or 'N/A'"/></div>
+                                <div><b>Zone/Sub</b>: <t t-esc="doc.buyer_region or 'N/A'"/></div>
+                                <div><b>Wereda</b>: <t t-esc="doc.buyer_wereda or 'N/A'"/></div>
+                                <div><b>Kebele</b>: N/A</div>
+                                <div><b>H/No</b>: <t t-esc="doc.buyer_house_number or doc.partner_id.street or 'N/A'"/></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="ei-table" style="margin-bottom: 12px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 4%;">No.</th>
+                                <th style="width: 28%;">Description</th>
+                                <th style="width: 10%;">Nature</th>
+                                <th style="width: 8%;">UoM</th>
+                                <th class="ei-right" style="width: 8%;">Qty</th>
+                                <th class="ei-right" style="width: 12%;">Unit Price</th>
+                                <th class="ei-right" style="width: 8%;">Discount</th>
+                                <th style="width: 14%;">Tax Code(s)</th>
+                                <th class="ei-right" style="width: 14%;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-set="idx" t-value="0"/>
+                            <t t-foreach="doc.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))" t-as="line">
+                                <t t-set="idx" t-value="idx + 1"/>
+                                <tr>
+                                    <td class="ei-center"><t t-esc="idx"/></td>
+                                    <td><t t-esc="line.name"/></td>
+                                    <td class="ei-center"><t t-esc="(line.product_id and (line.product_id.type or '').lower()) or 'goods'"/></td>
+                                    <td class="ei-center"><t t-esc="line.product_uom_id.name or ''"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.quantity"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.price_unit"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % (line.discount or 0.0)"/></td>
+                                    <td class="ei-center"><t t-esc="', '.join(line.tax_ids.mapped('name')) if line.tax_ids else 'VAT0'"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.price_total"/></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+
+                    <div class="row" style="margin-bottom: 10px;">
+                        <div class="col-7"></div>
+                        <div class="col-5">
+                            <div class="ei-card">
+                                <table class="ei-totals">
+                                    <tr>
+                                        <td class="label"><strong>Total</strong></td>
+                                        <td class="value"><t t-esc="'%.2f' % doc.amount_total"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Taxable total</td>
+                                        <td class="value"><t t-esc="'%.2f' % doc.amount_untaxed"/></td>
+                                    </tr>
+                                    <t t-if="tax_totals.get('subtotals')">
+                                        <t t-foreach="tax_totals.get('subtotals')" t-as="st">
+                                            <t t-foreach="st.get('tax_groups') or []" t-as="tg">
+                                                <tr>
+                                                    <td class="label"><t t-esc="tg.get('group_name')"/></td>
+                                                    <td class="value"><t t-esc="'%.2f' % (tg.get('tax_amount_currency') or 0.0)"/></td>
+                                                </tr>
+                                            </t>
+                                        </t>
+                                    </t>
+                                    <tr>
+                                        <td class="label"><strong>Total including tax</strong></td>
+                                        <td class="value"><strong><t t-esc="'%.2f' % doc.amount_total"/></strong></td>
+                                    </tr>
+                                </table>
+                                <div class="ei-hr" style="margin: 8px 0;"></div>
+                                <div class="ei-muted" style="font-size: 7px;">
+                                    <b>Total in words</b>: <t t-esc="doc.currency_id.amount_to_text(doc.amount_total).replace(',', '') if doc.currency_id else ''"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ei-card" style="margin-bottom: 8px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+                        <tr>
+                            <td style="padding: 4px 2px;"><strong>Mode of payment:</strong> <t t-esc="doc.mode_of_payment or '—'"/></td>
+                            <td style="padding: 4px 2px;"><strong>Type/Method:</strong> <t t-esc="doc.payment_term or 'IMMEDIATE'"/></td>
+                            <td style="padding: 4px 2px;"><strong>Cashier Name:</strong> <t t-esc="(doc.x_clicked_by_id and doc.x_clicked_by_id.name) or '—'"/></td>
+                        </tr>
+                        </table>
+                    </div>
+
+                    <div class="ei-footer">
+                        Generated by <t t-esc="doc.company_id.name"/> | Page 1 of 1
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <!-- Debit Note (E-Invoice) -->
+    <template id="report_debit_note_einvoice">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="cfg" t-value="doc.env['einvoice.config'].sudo().search([('company_id','=',doc.company_id.id),('active','=',True)], limit=1)"/>
+                <t t-set="tax_totals" t-value="doc.tax_totals or {}"/>
+                <div class="page" style="font-size: 12px; line-height: 1.5; padding: 14px 16px; color: #111;">
+                    <style>
+                        .ei-title { font-size: 20px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+                        .ei-subtitle { font-size: 12px; letter-spacing: .6px; color: #444; margin-top: 2px; }
+                        .ei-muted { color: #555; }
+                        .ei-card { border: 1.5px solid #111; border-radius: 12px; padding: 14px; }
+                        .ei-chip { display:inline-block; border:1px solid #111; border-radius: 999px; padding: 4px 12px; font-size: 10.5px; letter-spacing: .6px; }
+                        .ei-kv { font-size: 11px; line-height: 1.55; }
+                        .ei-kv b { letter-spacing: .2px; }
+                        .ei-hr { height: 1px; background: #111; opacity: .15; margin: 14px 0; }
+                        .ei-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 10px; }
+                        .ei-table thead th { background: #111; color:#fff; padding: 10px 8px; font-weight: 700; letter-spacing: .4px; border: none; }
+                        .ei-table tbody td { padding: 10px 8px; border-bottom: 1px solid rgba(0,0,0,.12); vertical-align: top; }
+                        .ei-table tbody tr:nth-child(even) td { background: rgba(0,0,0,.02); }
+                        .ei-right { text-align: right; }
+                        .ei-center { text-align: center; }
+                        .ei-totals { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+                        .ei-totals td { padding: 8px 8px; border-bottom: 1px solid rgba(0,0,0,.12); }
+                        .ei-totals tr:last-child td { border-bottom: none; }
+                        .ei-totals .label { color:#333; }
+                        .ei-totals .value { text-align:right; font-weight: 700; }
+                        .ei-footer { font-size: 10px; color: #444; margin-top: 10px; }
+                    </style>
+
+                    <div class="row" style="margin-bottom: 18px; align-items: flex-start;">
+                        <div class="col-5">
+                            <t t-if="doc.company_id.logo">
+                                <span t-field="doc.company_id.logo" t-options="{'widget': 'image', 'style': 'max-width: 340px; max-height: 160px;'}"/>
+                            </t>
+                        </div>
+                        <div class="col-7 text-end" style="font-size: 11px;">
+                            <p class="mb-0" style="font-size: 14px;"><strong><t t-esc="doc.company_id.name"/></strong></p>
+                            <p class="mb-0" t-if="doc.company_id.street"><t t-esc="doc.company_id.street"/></p>
+                            <p class="mb-0" t-if="doc.company_id.phone">Tel: <t t-esc="doc.company_id.phone"/></p>
+                            <p class="mb-0" t-if="doc.company_id.website"><t t-esc="doc.company_id.website"/></p>
+                        </div>
+                    </div>
+
+                    <div class="ei-card" style="margin-bottom: 14px;">
+                        <div class="row">
+                            <div class="col-8">
+                                <div class="ei-title">DEBIT NOTE</div>
+                                <div class="ei-subtitle">Registered electronic debit note summary</div>
+                            </div>
+                            <div class="col-4 text-end" style="padding-top: 2px;">
+                                <span class="ei-chip">E-INVOICE</span>
+                                <t t-if="doc.x_einvoice_debit_status or doc.x_einvoice_cn_status">
+                                    <span class="ei-chip" style="margin-left: 6px;">
+                                        <t t-esc="doc.x_einvoice_debit_status or doc.x_einvoice_cn_status"/>
+                                    </span>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ei-card" style="margin-bottom: 16px;">
+                        <div class="row">
+                            <div class="col-7 ei-kv">
+                                <div><b>IRN</b>: <t t-esc="doc.x_einvoice_debit_irn or doc.x_einvoice_cn_irn or ''"/></div>
+                                <div><b>Doc#</b>: <t t-esc="doc.x_einvoice_debit_document_number or doc.x_einvoice_cn_document_number or doc.name"/></div>
+                                <div><b>MRC</b>: <t t-esc="(cfg and cfg.system_number) or ''"/></div>
+                                <div><b>Date/time</b>: <t t-esc="doc.x_einvoice_debit_ack_date or doc.x_einvoice_cn_ack_date or doc.invoice_date"/></div>
+                            </div>
+                            <div class="col-5 text-end">
+                                <t t-if="doc.x_einvoice_debit_signed_qr">
+                                    <span t-field="doc.x_einvoice_debit_signed_qr" t-options="{'widget': 'image', 'style': 'width: 140px; height: 140px;'}"/>
+                                </t>
+                                <t t-elif="doc.x_einvoice_cn_signed_qr">
+                                    <span t-field="doc.x_einvoice_cn_signed_qr" t-options="{'widget': 'image', 'style': 'width: 140px; height: 140px;'}"/>
+                                </t>
+                                <div class="ei-muted" style="font-size: 10px; margin-top: 8px;">Scan to verify</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row" style="margin-bottom: 10px;">
+                        <div class="col-6">
+                            <div class="ei-card ei-kv">
+                                <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 4px;">SELLER</div>
+                                <div><b>Name</b>: <t t-esc="doc.company_id.name"/></div>
+                                <div><b>Seller TIN</b>: <t t-esc="(cfg and cfg.seller_tin) or (doc.company_id.vat or '')"/></div>
+                                <div><b>Seller VAT Reg.No</b>: <t t-esc="(cfg and cfg.vat_number) or (doc.company_id.vat or '')"/></div>
+                                <div class="ei-hr"></div>
+                                <div><b>City/Town</b>: <t t-esc="doc.company_id.city or '—'"/></div>
+                                <div><b>Zone/Sub</b>: <t t-esc="(cfg and cfg.zone) or '—'"/></div>
+                                <div><b>Wereda</b>: <t t-esc="(cfg and cfg.wereda) or '—'"/></div>
+                                <div><b>Kebele</b>: —</div>
+                                <div><b>H/No</b>: <t t-esc="doc.company_id.street or '—'"/></div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="ei-card ei-kv">
+                                <div style="font-weight: 800; letter-spacing: .6px; margin-bottom: 4px;">BUYER</div>
+                                <div><b>Name</b>: <t t-esc="doc.partner_id.name"/></div>
+                                <div><b>Buyer TIN</b>: <t t-esc="doc.partner_id.vat or doc.buyer_vat or '—'"/></div>
+                                <div><b>Buyer VAT Reg.No</b>: —</div>
+                                <div class="ei-hr"></div>
+                                <div><b>City/Town</b>: <t t-esc="doc.partner_id.city or doc.buyer_city or 'N/A'"/></div>
+                                <div><b>Zone/Sub</b>: <t t-esc="doc.buyer_region or 'N/A'"/></div>
+                                <div><b>Wereda</b>: <t t-esc="doc.buyer_wereda or 'N/A'"/></div>
+                                <div><b>Kebele</b>: N/A</div>
+                                <div><b>H/No</b>: <t t-esc="doc.buyer_house_number or doc.partner_id.street or 'N/A'"/></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="ei-table" style="margin-bottom: 12px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 4%;">No.</th>
+                                <th style="width: 28%;">Description</th>
+                                <th style="width: 10%;">Nature</th>
+                                <th style="width: 8%;">UoM</th>
+                                <th class="ei-right" style="width: 8%;">Qty</th>
+                                <th class="ei-right" style="width: 12%;">Unit Price</th>
+                                <th class="ei-right" style="width: 8%;">Discount</th>
+                                <th style="width: 14%;">Tax Code(s)</th>
+                                <th class="ei-right" style="width: 14%;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-set="idx" t-value="0"/>
+                            <t t-foreach="doc.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))" t-as="line">
+                                <t t-set="idx" t-value="idx + 1"/>
+                                <tr>
+                                    <td class="ei-center"><t t-esc="idx"/></td>
+                                    <td><t t-esc="line.name"/></td>
+                                    <td class="ei-center"><t t-esc="(line.product_id and (line.product_id.type or '').lower()) or 'goods'"/></td>
+                                    <td class="ei-center"><t t-esc="line.product_uom_id.name or ''"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.quantity"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.price_unit"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % (line.discount or 0.0)"/></td>
+                                    <td class="ei-center"><t t-esc="', '.join(line.tax_ids.mapped('name')) if line.tax_ids else 'VAT0'"/></td>
+                                    <td class="ei-right"><t t-esc="'%.2f' % line.price_total"/></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+
+                    <div class="row" style="margin-bottom: 10px;">
+                        <div class="col-7"></div>
+                        <div class="col-5">
+                            <div class="ei-card">
+                                <table class="ei-totals">
+                                    <tr>
+                                        <td class="label"><strong>Total</strong></td>
+                                        <td class="value"><t t-esc="'%.2f' % doc.amount_total"/></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="label">Taxable total</td>
+                                        <td class="value"><t t-esc="'%.2f' % doc.amount_untaxed"/></td>
+                                    </tr>
+                                    <t t-if="tax_totals.get('subtotals')">
+                                        <t t-foreach="tax_totals.get('subtotals')" t-as="st">
+                                            <t t-foreach="st.get('tax_groups') or []" t-as="tg">
+                                                <tr>
+                                                    <td class="label"><t t-esc="tg.get('group_name')"/></td>
+                                                    <td class="value"><t t-esc="'%.2f' % (tg.get('tax_amount_currency') or 0.0)"/></td>
+                                                </tr>
+                                            </t>
+                                        </t>
+                                    </t>
+                                    <tr>
+                                        <td class="label"><strong>Total including tax</strong></td>
+                                        <td class="value"><strong><t t-esc="'%.2f' % doc.amount_total"/></strong></td>
+                                    </tr>
+                                </table>
+                                <div class="ei-hr" style="margin: 8px 0;"></div>
+                                <div class="ei-muted" style="font-size: 7px;">
+                                    <b>Total in words</b>: <t t-esc="doc.currency_id.amount_to_text(doc.amount_total).replace(',', '') if doc.currency_id else ''"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ei-card" style="margin-bottom: 8px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
+                        <tr>
+                            <td style="padding: 4px 2px;"><strong>Mode of payment:</strong> <t t-esc="doc.mode_of_payment or '—'"/></td>
+                            <td style="padding: 4px 2px;"><strong>Type/Method:</strong> <t t-esc="doc.payment_term or 'IMMEDIATE'"/></td>
+                            <td style="padding: 4px 2px;"><strong>Cashier Name:</strong> <t t-esc="(doc.x_clicked_by_id and doc.x_clicked_by_id.name) or '—'"/></td>
+                        </tr>
+                        </table>
+                    </div>
+
+                    <div class="ei-footer">
+                        Generated by <t t-esc="doc.company_id.name"/> | Page 1 of 1
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>

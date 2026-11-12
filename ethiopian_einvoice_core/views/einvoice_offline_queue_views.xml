@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_einvoice_offline_queue_tree" model="ir.ui.view">
+        <field name="name">einvoice.offline.queue.tree</field>
+        <field name="model">einvoice.offline.queue</field>
+        <field name="arch" type="xml">
+            <list string="Offline Queue" decoration-danger="status == 'failed'" decoration-info="status == 'pending'">
+                <field name="create_date"/>
+                <field name="endpoint"/>
+                <field name="status"/>
+                <field name="retry_count"/>
+                <field name="error_message"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_einvoice_offline_queue" model="ir.actions.act_window">
+        <field name="name">E-Invoice Offline Queue</field>
+        <field name="res_model">einvoice.offline.queue</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No queued requests</p>
+            <p>When the E-Invoice server is unreachable, registration requests are stored here and retried automatically every 5 minutes.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_einvoice_offline_queue"
+              name="Offline Queue"
+              parent="account.menu_finance_reports"
+              action="action_einvoice_offline_queue"
+              sequence="50"
+              groups="ethiopian_einvoice_core.group_einvoice_user"/>
+</odoo>

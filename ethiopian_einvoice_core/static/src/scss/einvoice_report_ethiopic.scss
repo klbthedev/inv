@@ -1,0 +1,19 @@
+@font-face {
+    font-family: "NotoSansEthiopic";
+    src: url("/ethiopian_einvoice_core/static/src/fonts/NotoSansEthiopic-Regular.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+body,
+.page,
+.lg-wrap,
+.lg-table,
+.lg-table td,
+.lg-table th,
+.lg-title,
+.lg-bold,
+.lg-small {
+    font-family: "NotoSansEthiopic", "Abyssinica SIL", "Noto Sans Ethiopic", "Noto Serif Ethiopic", "DejaVu Sans", sans-serif !important;
+}

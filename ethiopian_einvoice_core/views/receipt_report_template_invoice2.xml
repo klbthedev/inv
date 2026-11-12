@@ -1,0 +1,566 @@
+<odoo>
+    <template id="ei_invoice2_layout">
+        <t t-set="cfg" t-value="doc.env['einvoice.config'].sudo().search([('company_id','=',doc.company_id.id),('active','=',True)], limit=1)"/>
+        <t t-set="tax_totals" t-value="doc.tax_totals or {}"/>
+        <t t-set="invoice_lines" t-value="doc.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product'))"/>
+        <t t-set="discount_amount_total" t-value="sum((l.price_unit * l.quantity * ((l.discount or 0.0) / 100.0)) for l in invoice_lines)"/>
+        <t t-set="collected_total" t-value="max((doc.amount_total or 0.0) - (doc.amount_residual or 0.0), 0.0)"/>
+        <t t-set="withholding_total" t-value="sum((((l.price_subtotal or 0.0) * ((t.amount or 0.0) / 100.0)) if t.amount_type == 'percent' else (((t.amount or 0.0) * (l.quantity or 0.0)) if t.amount_type == 'fixed' else 0.0)) for l in invoice_lines for t in l.tax_ids if ('withhold' in (t.name or '').lower() or 'wht' in (t.name or '').lower() or float(t.amount or 0.0) in (2.0, 3.0, -2.0, -3.0, 30.0, -30.0)))"/>
+        <t t-set="non_taxable_amount" t-value="sum((l.price_subtotal or 0.0) for l in invoice_lines if (not l.tax_ids) or all((((t.name or '').strip().lower() in ('vat 0%', '0%', '0% exempt', 'vat0')) or ((t.name or '').replace(' ', '').lower() in ('vat0%', '0%', '0%exempt', 'vat0'))) for t in l.tax_ids.filtered(lambda tx: 'excise' not in (tx.name or '').lower() and 'excise' not in (tx.tax_group_id.name or '').lower())))"/>
+        <t t-set="excise_tax_total" t-value="sum(((tg.get('tax_amount_currency') or 0.0)) for st in (tax_totals.get('subtotals') or []) for tg in (st.get('tax_groups') or []) if 'excise' in (tg.get('group_name') or '').lower())"/>
+        <t t-set="tax_label_list" t-value="sorted(set(t.name for l in invoice_lines for t in l.tax_ids if 'excise' not in (t.name or '').lower() and 'excise' not in (t.tax_group_id.name or '').lower()))"/>
+        <t t-set="pdf_totals" t-value="doc.get_invoice2_pdf_totals()"/>
+        <!-- <t t-set="fmt" t-value="lambda v: '{:,.2f}'.format(v or 0.0)"/> -->
+        <t t-set="fmt" t-value="lambda v: '{:,.2f}'.format(float(v or 0.0))"/>
+        <div class="page" style="font-size: 12px; color: #111; padding: 0; width: 100%;">
+            <style>
+                /* Light theme: white surfaces + dark headers */
+                .lg-wrap {
+                    background: #fff;
+                    border: 1.2px solid #2b2b2b;
+                    border-radius: 10px;
+                    padding: 10px;
+                    box-sizing: border-box;
+                    width: 100%;
+                    min-height: 0;
+                    height: 100%;
+                }
+                .lg-table { width: 100%; border-collapse: collapse; table-layout: fixed; background: #fff; }
+                .lg-table td, .lg-table th {
+                    border: 1px solid #8d8d8d;
+                    padding: 8px 7px;
+                    vertical-align: top;
+                    word-break: break-word;
+                    line-height: 1.15;
+                }
+                .lg-table th {
+                    font-size: 12px;
+                    font-weight: 800;
+                    background: #111 !important;
+                    color: #fff !important;
+                    letter-spacing: .4px;
+                    text-transform: uppercase;
+                }
+                .lg-title { font-weight: 800; font-size: 18px; text-align: center; }
+                .lg-center { text-align: center; }
+                .lg-right { text-align: right; }
+                .lg-small { font-size: 11px; }
+                .lg-meta td { border: none; padding: 3px 0; }
+                .lg-bold { font-weight: 800; }
+                .lg-gray { background: #f4f4f4; }
+                .lg-no-border { border: none !important; }
+                .lg-total-strong { font-size: 18px; font-weight: 800; }
+                .lg-party-line { padding: 4px 0; margin-bottom: 6px; line-height: 1.15; }
+                /* Zebra striping for readability */
+                .lg-table tbody tr:nth-child(even) td { background: rgba(0,0,0,.03); }
+                /* Subtle QR frame */
+                .lg-center img {
+                    border: 1px solid #cfcfcf;
+                    border-radius: 6px;
+                    padding: 3px;
+                    background: #fff;
+                }
+            </style>
+
+            <div class="lg-wrap">
+                <table class="lg-table" style="border: none;">
+                    <tr>
+                        <td style="width: 28%; border-top: none; border-left: none; border-bottom: 1px solid #9a9a9a;">
+                            <t t-if="doc.company_id.logo">
+                                <span t-field="doc.company_id.logo" t-options="{'widget': 'image', 'style': 'max-width: 200px; max-height: 180px;'}"/>
+                            </t>
+                        </td>
+                        <td style="width: 44%; border-top: none; border-bottom: 1px solid #9a9a9a;" class="lg-center">
+                            <div style="font-size: 18px; font-weight: 400; letter-spacing: 1px; font-style: italic;">POS / ERP System</div>
+                            <div style="font-size: 30px; font-weight: 800; letter-spacing: 1px;"><t t-esc="doc.company_id.name or 'TAXPAYERS'"/></div>
+                            <!-- <div style="font-size: 19px; font-weight: 700;">ADDIS KETEMA BOLE 13</div> -->
+                        </td>
+                        <td style="width: 28%; border-top: none; border-right: none; border-bottom: 1px solid #9a9a9a;">
+                            <table class="lg-table lg-meta">
+                                <tr><td style="width: 38%;"><span class="lg-bold">ቁጥር/Document No:</span></td><td class="lg-right"><span class="lg-bold"><t t-esc="doc.x_einvoice_credit_document_number if receipt_kind == 'credit_note' else (doc.x_einvoice_debit_document_number if receipt_kind == 'debit_note' else (doc.x_einvoice_document_number or ''))"/></span></td></tr>
+                                <tr><td style="width: 38%;"><span class="lg-bold">የደረሰኝ ቁጥር/Invoice No:</span></td><td class="lg-right"><span class="lg-bold"><t t-esc="doc.name or ''"/></span></td></tr>
+                                <tr><td><span class="lg-bold">ቀን/Date:</span></td><td class="lg-right"><t t-esc="doc.invoice_date"/></td></tr>
+                                <tr><td><span class="lg-bold">ሰዓት/Date/Time:</span></td><td class="lg-right">
+                                    <t t-if="receipt_kind == 'credit_note'"><t t-esc="doc.x_einvoice_credit_ack_date or doc.invoice_date"/></t>
+                                    <t t-elif="receipt_kind == 'debit_note'"><t t-esc="doc.x_einvoice_debit_ack_date or doc.invoice_date"/></t>
+                                    <t t-else=""><t t-esc="doc.x_einvoice_ack_date or doc.invoice_date"/></t>
+                                </td></tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="lg-table" style="border-left: none; border-right: none;">
+                    <tr>
+                        <td style="width: 72%;">
+                            <div class="lg-title"><t t-esc="invoice2_main_title"/></div>
+                            <div class="lg-center lg-small"><t t-esc="doc.transaction_type or ''"/></div>
+                            <!-- <div class="lg-center lg-small">እጅ በእጅ የሽያጭ ተ.እ.ታ/ኤክሳይዝ ታክስ ደረሰኝ/Cash Sales VAT/EXCISE TAX Invoice</div> -->
+                            <div style="margin-top: 4px;"><span class="lg-bold"><t t-esc="invoice2_irn_label"/>:</span> <t t-esc="invoice2_irn"/></div>
+                            <t t-if="receipt_kind in ('credit_note', 'debit_note')">
+                                <div style="margin-top: 2px;"><span class="lg-bold">የደረሰኝ ቁጥር/Original Invoice IRN:</span> <t t-esc="(doc.related_invoice_id and doc.related_invoice_id.x_einvoice_irn) or ''"/></div>
+                            </t>
+                            <div><span class="lg-bold">System Number:</span> <t t-esc="(cfg and cfg.system_number) or ''"/></div>
+                        </td>
+                        <td style="width: 28%;" class="lg-center">
+                            <t t-if="invoice2_qr_field == 'x_withholding_qr' and doc.x_withholding_qr">
+                                <span t-field="doc.x_withholding_qr" t-options="{'widget': 'image', 'style': 'width: 300mm; height: 300mm;'}"/>
+                            </t>
+                            <t t-elif="invoice2_qr_field == 'x_einvoice_receipt_qr' and doc.x_einvoice_receipt_qr">
+                                <span t-field="doc.x_einvoice_receipt_qr" t-options="{'widget': 'image', 'style': 'width: 300mm; height: 300mm;'}"/>
+                            </t>
+                            <t t-elif="invoice2_qr_field == 'x_einvoice_credit_signed_qr' and doc.x_einvoice_credit_signed_qr">
+                                <span t-field="doc.x_einvoice_credit_signed_qr" t-options="{'widget': 'image', 'style': 'width: 300mm; height: 300mm;'}"/>
+                            </t>
+                            <t t-elif="invoice2_qr_field == 'x_einvoice_debit_signed_qr' and doc.x_einvoice_debit_signed_qr">
+                                <span t-field="doc.x_einvoice_debit_signed_qr" t-options="{'widget': 'image', 'style': 'width: 300mm; height: 300mm;'}"/>
+                            </t>
+                            <t t-elif="receipt_kind != 'sales_receipt' and doc.x_einvoice_signed_qr">
+                                <span t-field="doc.x_einvoice_signed_qr" t-options="{'widget': 'image', 'style': 'width: 300mm; height: 300mm;'}"/>
+                            </t>
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="lg-table" style="border-left: none; border-right: none;">
+                    <tr class="lg-gray">
+                        <th class="lg-bold" style="width: 50%;">ሻጭ/Seller</th>
+                        <th class="lg-bold" style="width: 50%;">ገዢ/Buyer</th>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div class="lg-party-line"><span class="lg-bold">ስም/Name:</span> <t t-esc="doc.company_id.name"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">አድራሻ/Address:</span> <t t-esc="doc.company_id.street or ''"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">ከተማ/City:</span> <t t-esc="doc.company_id.city or ''"/> <span style="margin-left: 20px;" class="lg-bold">ዞን/Zone:</span> <t t-esc="(cfg and cfg.zone) or ''"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">ወረዳ/Wereda:</span> <t t-esc="(cfg and cfg.wereda) or ''"/> <span style="margin-left: 20px;" class="lg-bold">ቀበሌ/Kebele:</span> 101</div>
+                            <div class="lg-party-line"><span class="lg-bold">የሻጭ ስልክ/Seller Phone:</span> <t t-esc="doc.company_id.phone or ''"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">የሻጭ ተ.እ.ታ ቁጥር/VAT/Seller VAT Reg.No:</span> <t t-esc="(cfg and cfg.vat_number) or (doc.company_id.vat or '')"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">ቲን/TIN:</span> <t t-esc="(cfg and cfg.seller_tin) or (doc.company_id.vat or '')"/> <span style="margin-left: 20px;" class="lg-bold">Sub-TIN:</span> N/A</div>
+                        </td>
+                        <td>
+                            <div class="lg-party-line"><span class="lg-bold">ስም/Name:</span> <t t-esc="doc.partner_id.name or 'Walk-in Customer'"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">አድራሻ/Address:</span> <t t-esc="doc.partner_id.street or ''"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">ከተማ/City:</span> <t t-esc="doc.partner_id.city or ''"/> <span style="margin-left: 20px;" class="lg-bold">ዞን/Zone:</span> <t t-esc="doc.buyer_region or 'N/A'"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">ወረዳ/Wereda:</span> <t t-esc="doc.buyer_wereda or 'N/A'"/> <span style="margin-left: 20px;" class="lg-bold">ቀበሌ/Kebele:</span> N/A</div>
+                            <div class="lg-party-line"><span class="lg-bold">የገዢ ስልክ/Buyer Phone:</span> <t t-esc="doc.partner_id.phone or ''"/></div>
+                            <div class="lg-party-line"><span class="lg-bold">የገዢ ተ.እ.ታ ቁጥር/VAT/Buyer VAT Reg.No:</span> N/A</div>
+                            <div class="lg-party-line"><span class="lg-bold">ቲን/TIN:</span> <t t-esc="doc.partner_id.vat or doc.buyer_vat or 'N/A'"/> <span style="margin-left: 20px;" class="lg-bold">Sub-TIN:</span> N/A</div>
+                        </td>
+                    </tr>
+                </table>
+
+                <t t-if="receipt_kind == 'withholding_receipt'">
+                    <table class="lg-table" style="border-left: none; border-right: none;">
+                        <tr>
+                            <td><span class="lg-bold">የክፍያ ዝርዝር/Payment Description:</span> <t t-esc="doc.ref or 'Withhold for goods purchased'"/></td>
+                        </tr>
+                    </table>
+                    <table class="lg-table" style="border-left: none; border-right: none;">
+                        <thead>
+                            <tr class="lg-gray">
+                                <th class="lg-bold" style="width: 8%;">ቁጥር/No.</th>
+                                <th class="lg-bold" style="width: 54%;">የደረሰኝ ቁጥር/Withholding IRN</th>
+                                <th class="lg-bold lg-right" style="width: 19%;">ከታክስ በፊት/Pre tax Amount</th>
+                                <th class="lg-bold lg-right" style="width: 19%;">የተያዘ/Withheld</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="lg-center">1</td>
+                                <!-- <td><t t-esc="doc.x_einvoice_irn or doc.x_withholding_rrn or ''"/></td> -->
+                                <td><t t-esc="doc.x_withholding_invoice_irn or ''"/></td>
+                                <!-- <td class="lg-right"><t t-esc="'%.2f' % fmt((doc.amount_untaxed or 0.0))"/></td> -->
+                                <td class="lg-right"><t t-esc="fmt((doc.amount_untaxed or 0.0))"/></td>
+                                <td class="lg-right"><t t-esc="fmt((withholding_total or abs((doc.amount_total or 0.0) - (doc.amount_untaxed or 0.0))))"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <table class="lg-table" style="border-left: none; border-right: none;">
+                        <tr>
+                            <td style="width: 60%;" class="lg-no-border"></td>
+                            <td style="width: 24%;"><span class="lg-bold">ጠቅላላ ድምር ብር/Total ETB</span></td>
+                            <td style="width: 16%;" class="lg-right"><t t-esc="fmt((doc.amount_untaxed or 0.0))"/></td>
+                        </tr>
+                        <tr>
+                            <td class="lg-no-border"></td>
+                            <td class="lg-bold">ጠቅላላ ተቀናሽ ድምር/Total Withheld</td>
+                            <td class="lg-right"><t t-esc="fmt((withholding_total or abs((doc.amount_total or 0.0) - (doc.amount_untaxed or 0.0))))"/></td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" class="lg-small"><span class="lg-bold">በፊደል/In Words Birr:</span> <t t-esc="doc.currency_id.amount_to_text((withholding_total or abs((doc.amount_total or 0.0) - (doc.amount_untaxed or 0.0)))).replace(',', '') if doc.currency_id else ''"/></td>
+                        </tr>
+                    </table>
+                    <table class="lg-table" style="border-left: none; border-right: none; border-bottom: none;">
+                        <tr class="lg-gray">
+                            <th class="lg-bold" style="width: 50%;">ከ/From</th>
+                            <th class="lg-bold" style="width: 50%;">የተቀባይ መረጃ/Receiver Name &amp; የተቀባይ ፊርማ/Signature</th>
+                        </tr>
+                        <tr>
+                            <td><t t-esc="(doc.x_clicked_by_id and doc.x_clicked_by_id.name) or doc.create_uid.name or ''"/></td>
+                            <td><t t-esc="doc.partner_id.name or ''"/></td>
+                        </tr>
+                    </table>
+                </t>
+                <t t-elif="receipt_kind == 'sales_receipt'">
+                    <table class="lg-table" style="border-left: none; border-right: none;">
+                        <tr>
+                            <td><span class="lg-bold">የክፍያ ዝርዝር/Payment Description:</span> <t t-esc="doc.ref or ('Payment for invoice %s' % (doc.name or ''))"/></td>
+                        </tr>
+                        <tr>
+                            <td><span class="lg-bold">የደረሰኝ ቁጥር/Invoice IRN:</span> <t t-esc="doc.x_einvoice_irn or ''"/></td>
+                        </tr>
+                    </table>
+                    <t t-set="invoice_total_lines" t-value="0.0"/>
+                    <t t-set="total_withholding_amount" t-value="0.0"/>
+                    <t t-foreach="invoice_lines" t-as="line_for_total">
+                        <t t-set="line_gross_t" t-value="(line_for_total.quantity or 0.0) * (line_for_total.price_unit or 0.0)"/>
+                        <t t-set="line_discount_t" t-value="line_gross_t * ((line_for_total.discount or 0.0) / 100.0)"/>
+                        <t t-set="line_pre_tax_t" t-value="line_gross_t - line_discount_t"/>
+                        <t t-set="line_excise_t" t-value="line_for_total.x_excise_tax_value_line or 0.0"/>
+                        <t t-set="line_has_excise_t" t-value="any(('excise' in (tx.name or '').lower() or 'excise' in (tx.tax_group_id.name or '').lower()) for tx in line_for_total.tax_ids)"/>
+                        <t t-set="line_has_vat15_t" t-value="any((float(tx.amount or 0.0) == 15.0) and ('excise' not in (tx.name or '').lower()) and ('excise' not in (tx.tax_group_id.name or '').lower()) and ('withhold' not in (tx.name or '').lower()) and ('wht' not in (tx.name or '').lower()) and ('withhold' not in (tx.tax_group_id.name or '').lower()) for tx in line_for_total.tax_ids)"/>
+                        <t t-set="line_vat_t" t-value="((line_pre_tax_t + line_excise_t) * 0.15) if (line_has_vat15_t and line_has_excise_t) else ((line_pre_tax_t * 0.15) if line_has_vat15_t else 0.0)"/>
+                        <t t-set="invoice_total_lines" t-value="invoice_total_lines + line_pre_tax_t + line_excise_t + line_vat_t"/>
+                    </t>
+                    <table class="lg-table" style="border-left: none; border-right: none;">
+                        <thead>
+                            <tr class="lg-gray">
+                                <th class="lg-bold" style="width: 5%;">ቁጥር/No.</th>
+                                <th class="lg-bold" style="width: 36%;">የደረሰኝ ቁጥር/IRN No.</th>
+                                <th class="lg-bold lg-right" style="width: 12%;">ጠቅላላ ድምር/Total</th>
+                                <th class="lg-bold lg-right" style="width: 10%;">ተቀናሽ/Withheld</th>
+                                <th class="lg-bold lg-right" style="width: 10%;">ቅናሽ/Discount %</th>
+                                <th class="lg-bold lg-right" style="width: 13%;">ቀሪ/Remaining</th>
+                                <th class="lg-bold lg-right" style="width: 14%;">የተሰበሰበ/Collected</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- ORIGINAL PER-LINE LOOP (COMMENTED OUT):
+                            <t t-set="idx" t-value="0"/>
+                            <t t-set="total_remaining_amount" t-value="0.0"/>
+                            <t t-foreach="invoice_lines" t-as="line">
+                                <t t-set="idx" t-value="(idx or 0) + 1"/>
+                                <t t-set="line_gross" t-value="(line.quantity or 0.0) * (line.price_unit or 0.0)"/>
+                                <t t-set="line_discount_amount" t-value="line_gross * ((line.discount or 0.0) / 100.0)"/>
+                                <t t-set="line_pre_tax" t-value="line_gross - line_discount_amount"/>
+                                <t t-set="line_excise_amount" t-value="line.x_excise_tax_value_line or 0.0"/>
+                                <t t-set="line_has_excise" t-value="any(('excise' in (t.name or '').lower() or 'excise' in (t.tax_group_id.name or '').lower()) for t in line.tax_ids)"/>
+                                <t t-set="line_has_vat15" t-value="any((float(t.amount or 0.0) == 15.0) and ('excise' not in (t.name or '').lower()) and ('excise' not in (t.tax_group_id.name or '').lower()) and ('withhold' not in (t.name or '').lower()) and ('wht' not in (t.name or '').lower()) and ('withhold' not in (t.tax_group_id.name or '').lower()) for t in line.tax_ids)"/>
+                                <t t-set="line_vat_amount" t-value="((line_pre_tax + line_excise_amount) * 0.15) if (line_has_vat15 and line_has_excise) else ((line_pre_tax * 0.15) if line_has_vat15 else 0.0)"/>
+                                <t t-set="line_total_amount" t-value="line_pre_tax + line_excise_amount + line_vat_amount"/>
+                                <t t-set="line_withheld_amount" t-value="sum((((line_pre_tax) * ((t.amount or 0.0) / 100.0)) if t.amount_type == 'percent' else (((t.amount or 0.0) * (line.quantity or 0.0)) if t.amount_type == 'fixed' else 0.0)) for t in line.tax_ids if ('withhold' in (t.name or '').lower() or 'wht' in (t.name or '').lower() or float(t.amount or 0.0) in (2.0, 3.0, -2.0, -3.0, 30.0, -30.0)))"/>
+                                <t t-set="total_withholding_amount" t-value="total_withholding_amount + line_withheld_amount"/>
+                                <t t-set="line_collected_amount" t-value="(line_total_amount / invoice_total_lines) * collected_total if invoice_total_lines else 0.0"/>
+                                <t t-set="line_remaining_amount" t-value="line_total_amount - line_collected_amount"/>
+                                <t t-set="total_remaining_amount" t-value="(total_remaining_amount or 0.0) + (line_remaining_amount or 0.0) "/>
+                                <tr>
+                                    <td class="lg-center"><t t-esc="idx"/></td>
+                                    <td><t t-esc="doc.x_einvoice_irn or ''"/></td>
+                                    <td class="lg-right"><t t-esc="fmt(line_total_amount)"/></td>
+                                    <td class="lg-right"><t t-esc="fmt(line_withheld_amount)"/></td>
+                                    <td class="lg-right"><t t-esc="fmt(line_discount_amount)"/></td>
+                                    <td class="lg-right"><t t-esc="fmt(line_remaining_amount)"/></td>
+                                    <td class="lg-right"><t t-esc="fmt(line_collected_amount)"/></td>
+                                </tr>
+                            </t>
+                            -->
+                            <t t-set="total_discount_amount" t-value="0.0"/>
+                            <t t-foreach="invoice_lines" t-as="line">
+                                <t t-set="line_gross" t-value="(line.quantity or 0.0) * (line.price_unit or 0.0)"/>
+                                <t t-set="line_discount_amount" t-value="line_gross * ((line.discount or 0.0) / 100.0)"/>
+                                <t t-set="line_pre_tax" t-value="line_gross - line_discount_amount"/>
+                                <t t-set="line_withheld_amount" t-value="sum((((line_pre_tax) * ((t.amount or 0.0) / 100.0)) if t.amount_type == 'percent' else (((t.amount or 0.0) * (line.quantity or 0.0)) if t.amount_type == 'fixed' else 0.0)) for t in line.tax_ids if ('withhold' in (t.name or '').lower() or 'wht' in (t.name or '').lower() or float(t.amount or 0.0) in (2.0, 3.0, -2.0, -3.0, 30.0, -30.0)))"/>
+                                <t t-set="total_withholding_amount" t-value="total_withholding_amount + line_withheld_amount"/>
+                                <t t-set="total_discount_amount" t-value="total_discount_amount + line_discount_amount"/>
+                            </t>
+                            <t t-set="total_remaining_amount" t-value="max((invoice_total_lines or doc.amount_total or 0.0) - (collected_total or 0.0), 0.0)"/>
+                            <tr>
+                                <td class="lg-center">1</td>
+                                <td><t t-esc="doc.x_einvoice_irn or ''"/></td>
+                                <td class="lg-right"><t t-esc="fmt(invoice_total_lines or doc.amount_total)"/></td>
+                                <td class="lg-right"><t t-esc="fmt(total_withholding_amount)"/></td>
+                                <td class="lg-right"><t t-esc="fmt(total_discount_amount)"/></td>
+                                <td class="lg-right"><t t-esc="fmt(total_remaining_amount)"/></td>
+                                <td class="lg-right"><t t-esc="fmt(collected_total)"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <table class="lg-table" style="border-left: none; border-right: none;">
+                        <tr>
+                            <td style="width: 60%;" class="lg-no-border"></td>
+                            <td style="width: 24%;"><span class="lg-bold">ንዑስ ድምር/Sub Total</span></td>
+                            <td style="width: 16%;" class="lg-right"><t t-esc="fmt((invoice_total_lines or doc.amount_total))"/></td>
+                        </tr>
+                        <tr>
+                            <td class="lg-no-border"></td>
+                            <td class="lg-bold">የቅናሽ መጠን/Discount Amount %</td>
+                            <td class="lg-right"><t t-esc="fmt(discount_amount_total)"/></td>
+                        </tr>
+                        <tr>
+                            <td class="lg-no-border"></td>
+                            <td class="lg-bold">ጠቅላላ የተሰበሰበ/Collected Amount</td>
+                            <td class="lg-right"><t t-esc="fmt(collected_total)"/></td>
+                        </tr>
+                        <tr>
+                            <td class="lg-no-border"></td>
+                            <td class="lg-bold">ጠቅላላ ቀሪ መጠን / Remaining Amount</td>
+                            <td class="lg-right">
+                                <t t-esc="fmt((total_remaining_amount) + (total_withholding_amount  or 0.0))"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="lg-no-border"></td>
+                            <td class="lg-bold">ጠቅላላ ድምር ከታክስ ጋር /Total including Tax</td>
+                            <td class="lg-right lg-total-strong"><t t-esc="fmt((doc.amount_total) -  (total_withholding_amount  or 0.0))"/></td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" class="lg-small"><span class="lg-bold">በፊደል/In Words Birr:</span> <t t-esc="doc.currency_id.amount_to_text(collected_total or doc.amount_total).replace(',', '') if doc.currency_id else ''"/></td>
+                        </tr>
+                    </table>
+                    <table class="lg-table" style="border-left: none; border-right: none; border-bottom: none;">
+                        <tr class="lg-gray">
+                            <th class="lg-bold" style="width: 33%;">የክፍያ ሁኔታ/Mode of Payment</th>
+                            <th class="lg-bold" style="width: 33%;">ከ/From</th>
+                            <th class="lg-bold" style="width: 34%;">ለ/To</th>
+                        </tr>
+                        <tr>
+                            <td><span class="lg-bold">ዓይነት/Type:</span> <t t-esc="doc.mode_of_payment or 'CASH'"/></td>
+                            <td><t t-esc="(doc.x_clicked_by_id and doc.x_clicked_by_id.name) or ''"/></td>
+                            <td><t t-esc="doc.partner_id.name or ''"/></td>
+                        </tr>
+                    </table>
+                </t>
+                <t t-else="">
+                <table class="lg-table" style="border-left: none; border-right: none;">
+                    <thead>
+                        <tr class="lg-gray">
+                            <th class="lg-bold" style="width: 4%;">ቁጥር/No.</th>
+                            <th class="lg-bold" style="width: 21%;">የእቃው አይነት/Description</th>
+                            <th class="lg-bold" style="width: 8%;">ምድብ/Nature</th>
+                            <th class="lg-bold" style="width: 8%;">መለኪያ/UoM</th>
+                            <th class="lg-bold lg-right" style="width: 7%;">ብዛት/Qty</th>
+                            <th class="lg-bold lg-right" style="width: 10%;">የአንድ ዋጋ/Unit Price</th>
+                            <th class="lg-bold" style="width: 10%;">ታክስ ኮድ/Tax Code</th>
+                            <th class="lg-bold lg-right" style="width: 8%;">ኤግዛይስ/Excise</th>
+                            <th class="lg-bold lg-right" style="width: 9%;">ቅናሽ/Item Discount %</th>
+                            <th class="lg-bold lg-right" style="width: 15%;">ጠቅላላ ድምር/Total Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <t t-set="idx" t-value="0"/>
+                        <t t-set="total_remaining_amount" t-value="0.0"/>
+                        <t t-foreach="invoice_lines" t-as="line">
+                            <!-- <t t-set="idx" t-value="idx + 1"/> -->
+                            <t t-set="idx" t-value="(idx or 0) + 1"/>
+                            <t t-set="line_gross" t-value="(line.quantity or 0.0) * (line.price_unit or 0.0)"/>
+                            <t t-set="line_discount_amount" t-value="line_gross * ((line.discount or 0.0) / 100.0)"/>
+                            <t t-set="line_pre_tax" t-value="line_gross - line_discount_amount"/>
+                            <t t-set="line_excise_amount" t-value="line.x_excise_tax_value_line or 0.0"/>
+                            <t t-set="line_has_excise" t-value="any(('excise' in (t.name or '').lower() or 'excise' in (t.tax_group_id.name or '').lower()) for t in line.tax_ids)"/>
+                            <t t-set="line_has_vat15" t-value="any((float(t.amount or 0.0) == 15.0) and ('excise' not in (t.name or '').lower()) and ('excise' not in (t.tax_group_id.name or '').lower()) and ('withhold' not in (t.name or '').lower()) and ('wht' not in (t.name or '').lower()) and ('withhold' not in (t.tax_group_id.name or '').lower()) for t in line.tax_ids)"/>
+                            <t t-set="line_vat_amount" t-value="((line_pre_tax + line_excise_amount) * 0.15) if (line_has_vat15 and line_has_excise) else ((line_pre_tax * 0.15) if line_has_vat15 else 0.0)"/>
+                            <!-- <t t-set="line_total_amount" t-value="line.x_line_total_wo_vat if line.x_line_total_wo_vat is not None else (line_pre_tax + line_excise_amount)"/> -->
+                            <tr>
+                                <td class="lg-center"><t t-esc="idx"/></td>
+                                <td><t t-esc="line.name"/></td>
+                                <td><t t-esc="'service' if (line.product_id and line.product_id.type == 'service') else 'goods'"/></td>
+                                <td><t t-esc="line.product_uom_id.name or ''"/></td>
+                                <td class="lg-right"><t t-esc="fmt(line.quantity)"/></td>
+                                <td class="lg-right"><t t-esc="fmt(line.price_unit)"/></td>
+                                <td>
+                                    <t t-if="line.tax_ids">
+                                        <t t-set="tax_code_idx" t-value="0"/>
+                                        <t t-foreach="line.tax_ids" t-as="tax">
+                                            <t t-if="('excise' in (tax.name or '').lower()) or ('excise' in (tax.tax_group_id.name or '').lower())">
+                                                <t t-set="tax_code_idx" t-value="tax_code_idx"/>
+                                            </t>
+                                            <t t-elif="'EXEMPT' in (tax.name or '').upper()">
+                                                <t t-set="tax_code_idx" t-value="tax_code_idx + 1"/>
+                                                <t t-if="tax_code_idx &gt; 1">, </t>
+                                                VATEX
+                                            </t>
+                                            <t t-elif="(tax.amount or 0.0) == 15.0">
+                                                <t t-set="tax_code_idx" t-value="tax_code_idx + 1"/>
+                                                <t t-if="tax_code_idx &gt; 1">, </t>
+                                                VAT15
+                                            </t>
+                                            <t t-elif="(tax.amount or 0.0) == 0.0">
+                                                <t t-set="tax_code_idx" t-value="tax_code_idx + 1"/>
+                                                <t t-if="tax_code_idx &gt; 1">, </t>
+                                                VAT0
+                                            </t>
+                                            <t t-elif="('withholding' in (tax.name or '').lower()) or ('wht' in (tax.name or '').lower()) or (tax.amount or 0.0) in (2.0, 3.0, -2.0, -3.0, 30.0, -30.0)">
+                                                <t t-set="tax_code_idx" t-value="tax_code_idx + 1"/>
+                                                <t t-if="tax_code_idx &gt; 1">, </t>
+                                                TWTH
+                                            </t>
+                                            <t t-else="">
+                                                <t t-set="tax_code_idx" t-value="tax_code_idx + 1"/>
+                                                <t t-if="tax_code_idx &gt; 1">, </t>
+                                                VAT0
+                                            </t>
+                                        </t>
+                                    </t>
+                                    <t t-else="">VAT0</t>
+                                </td>
+                                <!-- <td class="lg-right"><t t-esc="'%.2f' % line_excise_amount"/></td> -->
+                                <td class="lg-right">
+                                    <t t-if="line.tax_ids">
+                                        <t t-set="excise_rate_idx" t-value="0"/>
+                                        <t t-foreach="line.tax_ids" t-as="tax">
+                                            <t t-if="('excise' in (tax.name or '').lower()) or ('excise' in (tax.tax_group_id.name or '').lower())">
+                                                <t t-set="excise_rate_idx" t-value="excise_rate_idx + 1"/>
+                                                <t t-if="excise_rate_idx &gt; 1">, </t>
+                                                <t t-esc="('%.2f' % (tax.amount or 0.0)) + '%'"/>
+                                            </t>
+                                        </t>
+                                        <t t-if="excise_rate_idx == 0">-</t>
+                                    </t>
+                                    <t t-else="">-</t>
+                                </td>
+                                <td class="lg-right"><t t-esc=" fmt((line.discount or 0.0))"/></td>
+                                <!-- <td class="lg-right"><t t-esc="'%.2f' % line_total_amount"/></td> -->
+                                <td class="lg-right"><t t-esc=" fmt((line.x_line_gross_extended if line.x_line_gross_extended is not None else line_gross))"/></td>
+                            </tr>
+                        </t>
+                    </tbody>
+                </table>
+
+                <table class="lg-table" style="border-left: none; border-right: none;">
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">ጠቅላላ የደረሰኝ ድምር / Total Amount (ETB)</td>
+                        <td class="lg-right"><t t-esc="fmt((pdf_totals.get('total_line_gross_extended') or 0.0))"/></td>
+                    </tr>
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">ኤክሳይዝ ታክስ/Excise Tax</td>
+                        <td class="lg-right"><t t-esc=" fmt((pdf_totals.get('excise_tax_total') or 0.0))"/></td>
+                    </tr>
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">የቅናሽ መጠን/Discount %</td>
+                        <td class="lg-right"><t t-esc="fmt((pdf_totals.get('discount_total') or 0.0))"/></td>
+                    </tr>
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">ተ.እ.ታክስ የሚከፈልበት ድምር/VAT15 Taxable Total</td>
+                        <td class="lg-right"><t t-esc="fmt((pdf_totals.get('vat15_taxable_total') or 0.0))"/></td>
+                    </tr>
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">ተ.እ.ታክስ/VAT15 Tax (15%)</td>
+                        <td class="lg-right"><t t-esc="fmt((pdf_totals.get('vat15_tax_amount') or 0.0))"/></td>
+                    </tr>
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">ተ.እ.ታ የማይከፈልበት ድምር/(VAT0, VATEX) Non Taxable Total</td>
+                        <td class="lg-right"><t t-esc="fmt((pdf_totals.get('non_taxable_total') or 0.0))"/></td>
+                    </tr>
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">ጠቅላላ ተቀናሽ ብር በፊደል /Total Withheld Amount 3%</td>
+                        <td class="lg-right"><t t-esc="fmt((pdf_totals.get('withholding_total') or 0.0))"/></td>
+                    </tr>
+                    <t t-if="(pdf_totals.get('b2g_vat_withhold_total') or 0.0) &gt; 0">
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">ጠቅላላ የ B2G ቫት ተቀናሽ / Total B2G VAT Withheld (7.5%)</td>
+                        <td class="lg-right"><t t-esc="fmt((pdf_totals.get('b2g_vat_withhold_total') or 0.0))"/></td>
+                    </tr>
+                    </t>
+                    <tr>
+                        <td class="lg-no-border"></td>
+                        <td class="lg-bold">ተ.እ.ታ ጨምሮ ጠቅላላ ድምር / Total Price Including Tax</td>
+                        <td class="lg-right lg-total-strong"><t t-esc="fmt((pdf_totals.get('total_including_tax', 0.0) - (withholding_total or 0.0)))"/></td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="lg-small"><span class="lg-bold">በፊደል ብር/In Words Birr:</span> <t t-esc="doc.currency_id.amount_to_text(doc.amount_total).replace(',', '') if doc.currency_id else ''"/></td>
+                    </tr>
+                </table>
+
+                <table class="lg-table" style="border-left: none; border-right: none; border-bottom: none;">
+                    <tr class="lg-gray">
+                        <th class="lg-bold" style="width: 50%;">የክፍያ ሁኔታ/Mode of Payment</th>
+                        <th class="lg-bold" style="width: 50%;">የተቀባይ መረጃ/Receiver Information</th>
+                    </tr>
+                    <tr>
+                        <td><span class="lg-bold">ዓይነት/Type:</span> <t t-esc="doc.mode_of_payment or 'CASH'"/></td>
+                        <td><span class="lg-bold">ተቀባይ/Receiver Name &amp; ፊርማ/Signature:</span> <t t-esc="doc.partner_id.name or 'Walk-in Customer'"/></td>
+                    </tr>
+                </table>
+                <div class="lg-center" style="padding: 8px 0 10px 0; font-weight: 700;">እናመሰግናለን  /  Thank you!</div>
+                </t>
+            </div>
+        </div>
+    </template>
+
+    <template id="report_registered_einvoice_invoice2">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="receipt_kind" t-value="'registered'"/>
+                <t t-set="invoice2_main_title" t-value="'የዱቤ ሽያጭ ተ.እ.ታ/ኤክሳይዝ ታክስ ደረሰኝ/Credit Sales Tax Invoice' if doc.x_sales_type == 'credit' else 'እጅ በእጅ የሽያጭ ተ.እ.ታ/ኤክሳይዝ ታክስ ደረሰኝ/Cash Sales Tax Invoice'"/>
+                <t t-set="invoice2_irn_label" t-value="'የደረሰኝ ቁጥር/IRN'"/>
+                <t t-set="invoice2_irn" t-value="doc.x_einvoice_irn or ''"/>
+                <t t-set="invoice2_qr_field" t-value="'x_einvoice_signed_qr'"/>
+                <t t-call="ethiopian_einvoice_core.ei_invoice2_layout"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_sales_receipt_invoice2">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="receipt_kind" t-value="'sales_receipt'"/>
+                <t t-set="invoice2_main_title" t-value="'ገንዘብ መቀበያ ደረሰኝ/Cash Receipt Voucher (CRV)'"/>
+                <t t-set="invoice2_irn_label" t-value="'የደረሰኝ ቁጥር/RRN'"/>
+                <!-- <t t-set="invoice2_irn" t-value="doc.x_einvoice_receipt_rrn or doc.x_einvoice_irn or ''"/> -->
+                <t t-set="invoice2_irn" t-value="doc.x_einvoice_receipt_rrn or ''"/>
+                <t t-set="invoice2_qr_field" t-value="'x_einvoice_receipt_qr'"/>
+                <t t-call="ethiopian_einvoice_core.ei_invoice2_layout"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_withholding_receipt_invoice2">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="receipt_kind" t-value="'withholding_receipt'"/>
+                <t t-set="invoice2_main_title" t-value="'ከተከፋይ ሂሳብ ላይ ለተቀነሰ ግብር የተሰጠ ደረሰኝ/Withholding Receipt'"/>
+                <!-- <t t-set="invoice2_irn" t-value="doc.x_withholding_rrn or doc.x_einvoice_irn or ''"/> -->
+                <t t-set="invoice2_irn_label" t-value="'Withholding RRN'"/>
+                <t t-set="invoice2_irn" t-value="doc.x_withholding_rrn or ''"/>
+                <t t-set="invoice2_qr_field" t-value="'x_withholding_qr'"/>
+                <t t-call="ethiopian_einvoice_core.ei_invoice2_layout"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_credit_note_einvoice_invoice2">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="receipt_kind" t-value="'credit_note'"/>
+                <t t-set="invoice2_main_title" t-value="'ክሬዲት ታክስ ደረሰኝ/Credit Note Tax Invoice'"/>
+                <!-- <t t-set="invoice2_irn" t-value="doc.get_invoice2_reference_irn()"/> -->
+                <t t-set="invoice2_irn_label" t-value="'የደረሰኝ ቁጥር/Reference IRN'"/>
+                <t t-set="invoice2_irn" t-value="doc.x_einvoice_credit_irn or doc.x_einvoice_cn_irn or ''"/>
+                <t t-set="invoice2_qr_field" t-value="'x_einvoice_credit_signed_qr'"/>
+                <t t-call="ethiopian_einvoice_core.ei_invoice2_layout"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_debit_note_einvoice_invoice2">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="receipt_kind" t-value="'debit_note'"/>
+                <t t-set="invoice2_main_title" t-value="'ዴቢት ታክስ ደረሰኝ/Debit Note Tax Invoice'"/>
+                <!-- <t t-set="invoice2_irn" t-value="doc.get_invoice2_reference_irn()"/> -->
+                <t t-set="invoice2_irn_label" t-value="'የደረሰኝ ቁጥር/Reference IRN'"/>
+                <t t-set="invoice2_irn" t-value="doc.x_einvoice_debit_irn or doc.x_einvoice_cn_irn or ''"/>
+                <t t-set="invoice2_qr_field" t-value="'x_einvoice_debit_signed_qr'"/>
+                <t t-call="ethiopian_einvoice_core.ei_invoice2_layout"/>
+            </t>
+        </t>
+    </template>
+</odoo>

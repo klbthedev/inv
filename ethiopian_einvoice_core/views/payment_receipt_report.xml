@@ -1,0 +1,99 @@
+<odoo>
+    <template id="report_sales_receipt_payment_invoice2">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="payment">
+                <t t-set="invoice" t-value="payment.reconciled_invoice_ids[:1]"/>
+
+                <t t-if="invoice">
+                    <t t-set="payment_doc" t-value="payment"/>
+                    <t t-set="doc" t-value="invoice"/>
+                    <t t-set="receipt_kind" t-value="'sales_receipt'"/>
+                    <t t-set="invoice2_main_title" t-value="'ገንዘብ መቀበያ ደረሰኝ/Cash Receipt Voucher (CRV)'"/>
+                    <t t-set="invoice2_irn_label" t-value="'የደረሰኝ ቁጥር/RRN'"/>
+                    <t t-set="invoice2_irn" t-value="payment.x_einvoice_receipt_rrn or ''"/>
+                    <t t-set="invoice2_qr_field" t-value="'x_einvoice_receipt_qr'"/>
+                    <t t-set="collected_total" t-value="payment.amount or 0.0"/>
+                    <t t-set="payment_mode" t-value="payment.mode_of_payment_receipt or ''"/>
+                    <t t-set="payment_reference" t-value="payment.move_id.name or payment.name or ''"/>
+                    <t t-set="payment_date" t-value="payment.date"/>
+                    <t t-call="ethiopian_einvoice_core.ei_invoice2_layout"/>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <record id="paperformat_sales_receipt" model="report.paperformat">
+        <field name="name">Sales Receipt</field>
+        <field name="format">A4</field>
+        <field name="margin_top">5</field>
+        <field name="margin_bottom">5</field>
+        <field name="margin_left">5</field>
+        <field name="margin_right">5</field>
+        <field name="orientation">Portrait</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+
+    </record>
+
+    <record id="action_report_sales_receipt_payment" model="ir.actions.report">
+        <field name="name">Sales Payment Receipt</field>
+        <field name="model">account.payment</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ethiopian_einvoice_core.report_sales_receipt_payment_invoice2</field>
+        <field name="report_file">ethiopian_einvoice_core.report_sales_receipt_payment_invoice2</field>
+        <field name="paperformat_id" ref="ethiopian_einvoice_core.paperformat_sales_receipt"/>
+        <field name="binding_model_id" ref="account.model_account_payment"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo>
+
+
+<!-- <odoo>
+    <template id="report_sales_receipt_payment_invoice2">
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="linked_invoice" t-value="doc.reconciled_invoice_ids[:1]"/>
+
+                <t t-set="receipt_kind" t-value="'sales_receipt'"/>
+                <t t-set="invoice2_main_title" t-value="'ገንዘብ መቀበያ ደረሰኝ/Cash Receipt Voucher (CRV)'"/>
+                <t t-set="invoice2_irn_label" t-value="'የደረሰኝ ቁጥር/RRN'"/>
+                <t t-set="invoice2_irn" t-value="doc.x_einvoice_receipt_rrn or ''"/>
+                <t t-set="invoice2_qr_field" t-value="'x_einvoice_receipt_qr'"/>
+
+                <t t-set="cfg" t-value="doc.env['einvoice.config'].sudo().search([('company_id','=',doc.company_id.id),('active','=',True)], limit=1)"/>
+
+                <t t-set="invoice_lines" t-value="linked_invoice.invoice_line_ids.filtered(lambda l: l.display_type in (False, 'product')) if linked_invoice else doc.env['account.move.line']"/>
+
+                <t t-set="tax_totals" t-value="linked_invoice.tax_totals if linked_invoice else {}"/>
+                <t t-set="collected_total" t-value="doc.amount or 0.0"/>
+                <t t-set="discount_amount_total" t-value="sum((l.price_unit * l.quantity * ((l.discount or 0.0) / 100.0)) for l in invoice_lines)"/>
+                <t t-set="withholding_total" t-value="sum((((l.price_subtotal or 0.0) * ((t.amount or 0.0) / 100.0)) if t.amount_type == 'percent' else (((t.amount or 0.0) * (l.quantity or 0.0)) if t.amount_type == 'fixed' else 0.0)) for l in invoice_lines for t in l.tax_ids if ('withhold' in (t.name or '').lower() or 'wht' in (t.name or '').lower() or float(t.amount or 0.0) in (2.0, 3.0, -2.0, -3.0, 30.0, -30.0)))"/>
+                <t t-set="non_taxable_amount" t-value="0.0"/>
+                <t t-set="excise_tax_total" t-value="0.0"/>
+                <t t-set="tax_label_list" t-value="[]"/>
+
+                <t t-set="pdf_totals" t-value="linked_invoice.get_invoice2_pdf_totals() if linked_invoice else {}"/>
+
+                <t t-set="fmt" t-value="lambda v: '{:,.2f}'.format(float(v or 0.0))"/>
+
+                <!- <t t-call="ethiopian_einvoice_core.ei_invoice2_layout"/> ->
+                <t t-if="linked_invoice">
+                    <t t-set="payment_doc" t-value="doc"/>
+                    <t t-set="doc" t-value="linked_invoice"/>
+                    <t t-call="ethiopian_einvoice_core.ei_invoice2_layout"/>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <record id="action_report_sales_receipt_payment" model="ir.actions.report">
+        <field name="name">Sales Payment Receipt</field>
+        <field name="model">account.payment</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ethiopian_einvoice_core.report_sales_receipt_payment_invoice2</field>
+        <field name="report_file">ethiopian_einvoice_core.report_sales_receipt_payment_invoice2</field>
+        <field name="binding_model_id" ref="account.model_account_payment"/>
+        <field name="binding_type">report</field>
+    </record>
+
+</odoo> -->

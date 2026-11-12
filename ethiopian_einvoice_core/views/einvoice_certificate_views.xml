@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_einvoice_certificate_list" model="ir.ui.view">
+        <field name="name">einvoice.certificate.list</field>
+        <field name="model">einvoice.certificate</field>
+        <field name="arch" type="xml">
+            <!-- <list string="E-Invoice Certificates" decoration-danger="valid_to and valid_to &lt; current_date"
+                  decoration-warning="valid_to and (valid_to - current_date).days &lt;= 30"> -->
+            <list string="E-Invoice Certificates" decoration-danger="is_expired" decoration-warning="is_expiring_soon">
+                <field name="name"/>
+                <field name="source_number"/>
+                <field name="subject"/>
+                <field name="issuer"/>
+                <field name="valid_from"/>
+                <field name="valid_to"/>
+                <field name="days_to_expiry"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_einvoice_certificate_form" model="ir.ui.view">
+        <field name="name">einvoice.certificate.form</field>
+        <field name="model">einvoice.certificate</field>
+        <field name="arch" type="xml">
+            <form string="E-Invoice Certificate">
+                <header>
+                    <button name="action_check_expiry"
+                            string="Check Expiry"
+                            type="object"
+                            class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. HQ – SourceNumber"/></h1>
+                    </div>
+
+                    <group>
+                        <group string="Identity">
+                            <field name="source_number"
+                                   placeholder="Must match System Number in E-Invoice Config"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Certificate Details (read-only)">
+                            <field name="subject" readonly="1"/>
+                            <field name="issuer" readonly="1"/>
+                            <field name="serial_number" readonly="1"/>
+                            <field name="valid_from" readonly="1"/>
+                            <field name="valid_to" readonly="1" decoration-danger="is_expired" decoration-warning="is_expiring_soon"/>
+                            <!-- <field name="valid_to" readonly="1"
+                                   decoration-danger="valid_to and valid_to &lt; current_date"
+                                   decoration-warning="valid_to and (valid_to - current_date).days &lt;= 30"/> -->
+                        </group>
+                    </group>
+
+                    <!-- <group string="Certificate File">
+                        <field name="certificate_pem"
+                               widget="binary"
+                               filename="certificate_filename"
+                               help="Upload the .pem or .crt file received from INSA."/>
+                        <field name="certificate_filename" invisible="1"/>
+                    </group> -->
+                    <group string="Certificate File">
+                        <field name="certificate_pem"
+                            widget="binary"
+                            filename="certificate_filename"
+                            help="Upload the .pem or .crt file received from INSA. The file is stored securely outside the database."/>
+                        <field name="certificate_filename" invisible="1"/>
+                        <field name="cert_configured" readonly="1" string="Certificate Loaded"/>
+                    </group>
+                    <!-- <group string="Private Key">
+                        <field name="private_key_pem"
+                               widget="binary"
+                               filename="private_key_filename"
+                               help="Upload the private_key.key file generated before the CSR. Keep this file secure."/>
+                        <field name="private_key_filename" invisible="1"/>
+                        <field name="private_key_password"
+                               password="True"
+                               help="Leave blank if the key was generated without a passphrase."/>
+                    </group> -->
+                    <group string="Private Key">
+                        <field name="private_key_pem"
+                            widget="binary"
+                            filename="private_key_filename"
+                            help="Upload the private_key.key file. Stored securely outside the database — never saved in Odoo."/>
+                        <field name="private_key_filename" invisible="1"/>
+                        <field name="private_key_password"
+                            password="True"
+                            help="Leave blank if the key was generated without a passphrase. Written to secure storage only."/>
+                        <field name="key_configured" readonly="1" string="Private Key Loaded"/>
+                    </group>
+
+                    <div class="alert alert-warning" role="alert"
+                         invisible = "valid_to == False">
+                        <strong>Security Notice:</strong>
+                        The private key stored here is used to sign every e-invoice submission.
+                        Restrict access to this menu to authorised personnel only
+                        (E-Invoice Security group).  Never share the private key file.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_einvoice_certificate" model="ir.actions.act_window">
+        <field name="name">Certificate Management</field>
+        <field name="res_model">einvoice.certificate</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No certificates yet
+            </p>
+            <p>
+                Upload the .pem certificate and private key issued by INSA for each
+                Source Number configured for your company.
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_einvoice_certificate"
+              name="Certificate Management"
+              action="action_einvoice_certificate"
+              parent="menu_einvoicing_root"
+              sequence="50"
+              groups="ethiopian_einvoice_core.group_einvoice_security"/>
+
+</odoo>

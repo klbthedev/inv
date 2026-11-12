@@ -1,0 +1,80 @@
+<odoo>
+    <record id="paperformat_einvoice_receipt" model="report.paperformat">
+        <field name="name">E-Invoice Receipt A4</field>
+        <field name="format">A4</field>
+        <field name="margin_top">5</field>
+        <field name="margin_bottom">5</field>
+        <field name="margin_left">7</field>
+        <field name="margin_right">7</field>
+        <field name="orientation">Portrait</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+    </record>
+
+    <record id="action_report_receipt_dummy" model="ir.actions.report">
+        <field name="name">Receipt Dummy</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ethiopian_einvoice_core.report_receipt_dummy</field>
+        <field name="report_file">ethiopian_einvoice_core.report_receipt_dummy</field>
+        <field name="print_report_name">'Receipt - %s' % (object.name)</field>
+    </record>
+
+    <record id="action_report_sales_receipt" model="ir.actions.report">
+        <field name="name">Print Sales Receipt (E-Invoice)</field>
+        <field name="model">account.move</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ethiopian_einvoice_core.report_sales_receipt_invoice2</field>
+        <field name="report_file">ethiopian_einvoice_core.report_sales_receipt_invoice2</field>
+        <field name="print_report_name">'Sales Receipt - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_einvoice_receipt"/>
+    </record>
+
+    <record id="action_report_withholding_receipt" model="ir.actions.report">
+        <field name="name">Print Withholding Receipt (E-Invoice)</field>
+        <field name="model">account.move</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ethiopian_einvoice_core.report_withholding_receipt_invoice2</field>
+        <field name="report_file">ethiopian_einvoice_core.report_withholding_receipt_invoice2</field>
+        <field name="print_report_name">'Withholding Receipt - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_einvoice_receipt"/>
+    </record>
+
+    <record id="action_report_registered_einvoice" model="ir.actions.report">
+        <field name="name">Registered E-Invoice (PDF)</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ethiopian_einvoice_core.report_registered_einvoice_invoice2</field>
+        <field name="report_file">ethiopian_einvoice_core.report_registered_einvoice_invoice2</field>
+        <field name="print_report_name">'E-Invoice - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_einvoice_receipt"/>
+    </record>
+
+    <record id="action_report_credit_note_einvoice" model="ir.actions.report">
+        <field name="name">Print Credit Note (E-Invoice)</field>
+        <field name="model">account.move</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ethiopian_einvoice_core.report_credit_note_einvoice_invoice2</field>
+        <field name="report_file">ethiopian_einvoice_core.report_credit_note_einvoice_invoice2</field>
+        <field name="print_report_name">'Credit Note - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_einvoice_receipt"/>
+    </record>
+
+    <record id="action_report_debit_note_einvoice" model="ir.actions.report">
+        <field name="name">Print Debit Note (E-Invoice)</field>
+        <field name="model">account.move</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ethiopian_einvoice_core.report_debit_note_einvoice_invoice2</field>
+        <field name="report_file">ethiopian_einvoice_core.report_debit_note_einvoice_invoice2</field>
+        <field name="print_report_name">'Debit Note - %s' % (object.name)</field>
+        <field name="paperformat_id" ref="paperformat_einvoice_receipt"/>
+    </record>
+</odoo>

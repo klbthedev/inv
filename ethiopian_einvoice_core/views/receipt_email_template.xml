@@ -1,0 +1,150 @@
+<odoo>
+
+    <record id="email_template_sales_receipt" model="mail.template">
+        <field name="name">Sales Receipt Email</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Your Receipt - ${object.name}</field>
+        <field name="email_from">${(object.company_id.email or user.email) | safe}</field>
+        <field name="email_to">${object.partner_id.email}</field>
+        <field name="body_html">
+            <![CDATA[
+                <p>Dear ${object.partner_id.name},</p>
+                <p>Your receipt <strong>${object.name}</strong> has been successfully registered.</p>
+                <p>Please find the receipt attached as PDF.</p>
+                % if object.x_einvoice_receipt_rrn:
+                <p>
+                    <strong>RRN:</strong> ${object.x_einvoice_receipt_rrn or '—'}<br/>
+                    <a href="${ctx.get('download_url', '')}" style="display:inline-block;padding:8px 16px;background:#1a5276;color:#fff;border-radius:4px;text-decoration:none;font-weight:bold;">⬇ Download Sales Receipt PDF</a>
+                </p>
+                % endif
+                <p>Thank you for your business.</p>
+                <p>Regards,<br/>${object.company_id.name}</p>
+            ]]>
+        </field>
+    </record>
+
+    <record id="email_template_invoice_registration" model="mail.template">
+        <field name="name">E-Invoice Registration Notification</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Invoice ${object.name} registered - IRN: ${object.x_einvoice_irn or '—'}</field>
+        <field name="email_from">${(object.company_id.email or user.email) | safe}</field>
+        <field name="email_to">${object.partner_id.email}</field>
+        <field name="body_html">
+            <![CDATA[
+                <p>Dear ${object.partner_id.name},</p>
+                <p>Your invoice <strong>${object.name}</strong> has been registered with the E-Invoice system.</p>
+                <p>
+                    <strong>IRN:</strong> ${object.x_einvoice_irn or '—'}<br/>
+                    <strong>Status:</strong> ${object.x_einvoice_status or '—'}<br/>
+                    <strong>Acknowledged:</strong> ${object.x_einvoice_ack_date.strftime('%Y-%m-%d %H:%M') if object.x_einvoice_ack_date else '—'}
+                </p>
+                % if ctx.get('download_url'):
+                <p>
+                    <a href="${ctx.get('download_url', '')}" style="display:inline-block;padding:8px 16px;background:#1a5276;color:#fff;border-radius:4px;text-decoration:none;font-weight:bold;">⬇ Download Invoice PDF</a>
+                </p>
+                % endif
+                % if object.x_einvoice_irn:
+                <p><a href="https://portal.mor.gov.et/public/invoice?irn=${object.x_einvoice_irn}">View on MoR Portal</a></p>
+                % endif
+                <p>Regards,<br/>${object.company_id.name}</p>
+            ]]>
+        </field>
+    </record>
+
+    <record id="email_template_cancellation" model="mail.template">
+        <field name="name">E-Invoice Cancellation Notification</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Invoice ${object.name} cancelled</field>
+        <field name="email_from">${(object.company_id.email or user.email) | safe}</field>
+        <field name="email_to">${object.partner_id.email}</field>
+        <field name="body_html">
+            <![CDATA[
+                <p>Dear ${object.partner_id.name},</p>
+                <p>Invoice <strong>${object.name}</strong> has been cancelled.</p>
+                <p>
+                    <strong>Cancel status:</strong> ${object.x_einvoice_cancel_status or '—'}<br/>
+                    <strong>Cancel date:</strong> ${object.x_einvoice_cancel_date.strftime('%Y-%m-%d %H:%M') if object.x_einvoice_cancel_date else '—'}
+                </p>
+                <p>Regards,<br/>${object.company_id.name}</p>
+            ]]>
+        </field>
+    </record>
+
+    <record id="email_template_credit_note" model="mail.template">
+        <field name="name">E-Invoice Credit Note Notification</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Credit note ${object.name} registered - IRN: ${object.x_einvoice_cn_irn or '—'}</field>
+        <field name="email_from">${(object.company_id.email or user.email) | safe}</field>
+        <field name="email_to">${object.partner_id.email}</field>
+        <field name="body_html">
+            <![CDATA[
+                <p>Dear ${object.partner_id.name},</p>
+                <p>Your credit note <strong>${object.name}</strong> has been registered with the E-Invoice system.</p>
+                <p>
+                    <strong>IRN:</strong> ${object.x_einvoice_cn_irn or '—'}<br/>
+                    <strong>Status:</strong> ${object.x_einvoice_cn_status or '—'}<br/>
+                    <strong>Acknowledged:</strong> ${object.x_einvoice_cn_ack_date.strftime('%Y-%m-%d %H:%M') if object.x_einvoice_cn_ack_date else '—'}
+                </p>
+                % if ctx.get('download_url'):
+                <p>
+                    <a href="${ctx.get('download_url', '')}" style="display:inline-block;padding:8px 16px;background:#1a5276;color:#fff;border-radius:4px;text-decoration:none;font-weight:bold;">⬇ Download Credit Note PDF</a>
+                </p>
+                % endif
+                % if object.x_einvoice_credit_irn:
+                <p><a href="https://portal.mor.gov.et/public/invoice?irn=${object.x_einvoice_credit_irn}">View on MoR Portal</a></p>
+                % endif
+                <p>Regards,<br/>${object.company_id.name}</p>
+            ]]>
+        </field>
+    </record>
+
+    <record id="email_template_debit_note" model="mail.template">
+        <field name="name">E-Invoice Debit Note Notification</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Debit note ${object.name} registered - IRN: ${object.x_einvoice_debit_irn or '—'}</field>
+        <field name="email_from">${(object.company_id.email or user.email) | safe}</field>
+        <field name="email_to">${object.partner_id.email}</field>
+        <field name="body_html">
+            <![CDATA[
+                <p>Dear ${object.partner_id.name},</p>
+                <p>Your debit note <strong>${object.name}</strong> has been registered with the E-Invoice system.</p>
+                <p>
+                    <strong>IRN:</strong> ${object.x_einvoice_debit_irn or '—'}<br/>
+                    <strong>Status:</strong> ${object.x_einvoice_debit_status or '—'}<br/>
+                    <strong>Acknowledged:</strong> ${object.x_einvoice_debit_ack_date.strftime('%Y-%m-%d %H:%M') if object.x_einvoice_debit_ack_date else '—'}
+                </p>
+                % if ctx.get('download_url'):
+                <p>
+                    <a href="${ctx.get('download_url', '')}" style="display:inline-block;padding:8px 16px;background:#1a5276;color:#fff;border-radius:4px;text-decoration:none;font-weight:bold;">⬇ Download Debit Note PDF</a>
+                </p>
+                % endif
+                % if object.x_einvoice_debit_irn:
+                <p><a href="https://portal.mor.gov.et/public/invoice?irn=${object.x_einvoice_debit_irn}">View on MoR Portal</a></p>
+                % endif
+                <p>Regards,<br/>${object.company_id.name}</p>
+            ]]>
+        </field>
+    </record>
+
+    <record id="email_template_withholding_receipt" model="mail.template">
+        <field name="name">E-Invoice Withholding Receipt Notification</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Withholding Receipt - ${object.name}</field>
+        <field name="email_from">${(object.company_id.email or user.email) | safe}</field>
+        <field name="email_to">${object.partner_id.email}</field>
+        <field name="body_html">
+            <![CDATA[
+                <p>Dear ${object.partner_id.name},</p>
+                <p>Your withholding receipt for <strong>${object.name}</strong> has been issued.</p>
+                <p>Please find the withholding receipt attached as PDF.</p>
+                % if ctx.get('download_url'):
+                <p>
+                    <a href="${ctx.get('download_url', '')}" style="display:inline-block;padding:8px 16px;background:#1a5276;color:#fff;border-radius:4px;text-decoration:none;font-weight:bold;">⬇ Download Withholding Receipt PDF</a>
+                </p>
+                % endif
+                <p>Regards,<br/>${object.company_id.name}</p>
+            ]]>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Excise tax group and taxes: main company only (multi-company safeguard) -->
+        <record id="excise_tax_group" model="account.tax.group">
+            <field name="name">Excise</field>
+            <field name="country_id" ref="base.et"/>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <!-- Excise taxes by HSN code and rate (main company only) -->
+        <record id="excise_tax_1012100" model="account.tax">
+            <field name="name">Excise 1012100 12.0</field>
+            <field name="amount">12.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_2011000" model="account.tax">
+            <field name="name">Excise 2011000 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_3038900" model="account.tax">
+            <field name="name">Excise 3038900 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_4022100" model="account.tax">
+            <field name="name">Excise 4022100 12.0</field>
+            <field name="amount">12.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_5010000" model="account.tax">
+            <field name="name">Excise 5010000 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_6029000" model="account.tax">
+            <field name="name">Excise 6029000 18.0</field>
+            <field name="amount">18.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_7020000" model="account.tax">
+            <field name="name">Excise 7020000 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_8052010" model="account.tax">
+            <field name="name">Excise 8052010 10.0</field>
+            <field name="amount">10.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_9011110" model="account.tax">
+            <field name="name">Excise 9011110 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_10061010" model="account.tax">
+            <field name="name">Excise 10061010 0.0</field>
+            <field name="amount">0.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_11010000" model="account.tax">
+            <field name="name">Excise 11010000 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_12074000" model="account.tax">
+            <field name="name">Excise 12074000 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_13021919" model="account.tax">
+            <field name="name">Excise 13021919 12.0</field>
+            <field name="amount">12.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_14049010" model="account.tax">
+            <field name="name">Excise 14049010 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_15071000" model="account.tax">
+            <field name="name">Excise 15071000 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_17019990" model="account.tax">
+            <field name="name">Excise 17019990 18.0</field>
+            <field name="amount">18.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_18050000" model="account.tax">
+            <field name="name">Excise 18050000 5.0</field>
+            <field name="amount">5.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_19053100" model="account.tax">
+            <field name="name">Excise 19053100 18.0</field>
+            <field name="amount">18.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_20081100" model="account.tax">
+            <field name="name">Excise 20081100 12.0</field>
+            <field name="amount">12.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+        <record id="excise_tax_21069099" model="account.tax">
+            <field name="name">Excise 21069099 18.0</field>
+            <field name="amount">18.0</field>
+            <field name="amount_type">percent</field>
+            <field name="type_tax_use">sale</field>
+            <field name="company_id" ref="base.main_company"/>
+            <field name="tax_group_id" ref="excise_tax_group"/>
+        </record>
+    </data>
+</odoo>

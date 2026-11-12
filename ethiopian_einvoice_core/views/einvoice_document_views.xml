@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_einvoice_document_tree" model="ir.ui.view">
+        <field name="name">einvoice.document.tree</field>
+        <field name="model">einvoice.document</field>
+        <field name="arch" type="xml">
+            <list string="E-Invoice Documents">
+                <field name="name"/>
+                <field name="res_model"/>
+                <field name="res_id"/>
+                <field name="mimetype"/>
+                <field name="create_date"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_einvoice_document_form" model="ir.ui.view">
+        <field name="name">einvoice.document.form</field>
+        <field name="model">einvoice.document</field>
+        <field name="arch" type="xml">
+            <form string="E-Invoice Document" create="0" edit="0" delete="0">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" readonly="1"/>
+                            <field name="res_model" readonly="1"/>
+                            <field name="res_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="mimetype" readonly="1"/>
+                            <field name="create_date" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="PDF Document">
+                            <field name="datas" filename="name" widget="pdf_viewer" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_einvoice_document" model="ir.actions.act_window">
+        <field name="name">E-Invoice Documents</field>
+        <field name="res_model">einvoice.document</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_einvoice_document"
+              name="Documents"
+              action="action_einvoice_document"
+              parent="ethiopian_einvoice_core.menu_einvoicing_root"
+              sequence="20"/>
+</odoo>

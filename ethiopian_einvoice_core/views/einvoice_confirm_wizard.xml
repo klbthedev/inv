@@ -1,0 +1,222 @@
+<odoo>
+    <record id="view_einvoice_confirm_wizard" model="ir.ui.view">
+        <field name="name">einvoice.confirm.wizard.form</field>
+        <field name="model">einvoice.confirm.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group string="Invoice Summary">
+                        <group>
+                            <field name="move_id"/>
+                            <field name="partner_id"/>
+                            <field name="amount_total"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Transaction Details">
+                        <group>
+                            <field name="transaction_type"/>
+                            <field name="mode_of_payment"/>
+                            <field name="payment_term"/>
+                            <!-- <field name="system_type"/> -->
+                        </group>
+                    </group>
+                    <group string="Buyer Details">
+                        <group>
+                            <field name="buyer_name"/>
+                            <field name="buyer_tin"/>
+                            <field name="buyer_phone" placeholder = "eg. 0911223344"/>
+                            <field name="buyer_email"/>
+                        </group>
+                        <group>
+                            <field name="buyer_region"/>
+                            <field name="buyer_city"/>
+                            <field name="buyer_wereda"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_confirm" type="object"
+                                string="Confirm &amp; Send to E-Invoice"
+                                class="btn-primary"/>
+                        <button string="Cancel" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_einvoice_credit_debit_confirm_wizard" model="ir.ui.view">
+        <field name="name">einvoice.credit.debit.confirm.wizard.form</field>
+        <field name="model">einvoice.credit.debit.confirm.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group string="Note Summary">
+                        <group>
+                            <field name="move_id"/>
+                            <field name="partner_id"/>
+                            <field name="amount_total"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Credit / Debit Reason">
+                        <group>
+                            <field name="re_einvoice_reason"/>
+                            <field name="reason"/>
+                        </group>
+                    </group>
+                    <group string="Transaction Details">
+                        <group>
+                            <field name="transaction_type"/>
+                            <field name="mode_of_payment"/>
+                            <field name="payment_term"/>
+                        </group>
+                    </group>
+                    <group string="Buyer Details">
+                        <group>
+                            <field name="buyer_name"/>
+                            <field name="buyer_tin"/>
+                            <field name="buyer_phone" placeholder="eg. 0911223344"/>
+                            <field name="buyer_email"/>
+                        </group>
+                        <group>
+                            <field name="buyer_region"/>
+                            <field name="buyer_city"/>
+                            <field name="buyer_wereda"/>
+                        </group>
+                    </group>
+                    <footer>
+                        <button name="action_confirm" type="object"
+                                string="Confirm &amp; Send to E-Invoice"
+                                class="btn-primary"/>
+                        <button string="Cancel" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_einvoice_cancel_wizard" model="ir.ui.view">
+        <field name="name">einvoice.cancel.wizard.form</field>
+        <field name="model">einvoice.cancel.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cancel E-Invoice">
+                <group>
+                    <field name="move_id"/>
+                    <field name="reason_code"/>
+                    <field name="remark"/>
+                </group>
+                <footer>
+                    <button
+                        string="Yes, Cancel Invoice"
+                        type="object"
+                        name="action_confirm_cancel"
+                        class="btn-danger"
+                    />
+                    <button string="Close" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_einvoice_bulk_confirm_wizard" model="ir.ui.view">
+        <field name="name">einvoice.bulk.confirm.wizard.form</field>
+        <field name="model">einvoice.bulk.confirm.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="move_ids" widget="many2many_tags"/>
+                    </group>
+                    <footer>
+                        <button name="action_confirm_bulk"
+                                type="object"
+                                class="btn-primary"
+                                string="Yes, Send"/>
+                        <button special="cancel" string="Cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_einvoice_verify_wizard" model="ir.ui.view">
+        <field name="name">einvoice.verify.wizard.form</field>
+        <field name="model">einvoice.verify.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="move_id"/>
+                    </group>
+                    <footer>
+                        <button name="action_verify"
+                                type="object"
+                                class="btn-primary"
+                                string="Yes, Verify"/>
+                        <button special="cancel" string="Cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_einvoice_receipt_wizard" model="ir.ui.view">
+        <field name="name">einvoice.receipt.wizard.form</field>
+        <field name="model">einvoice.receipt.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group string="Invoice">
+                        <field name="move_id"/>
+                    </group>
+                    <group string="Payment Details">
+                        <group>
+                            <field name="mode_of_payment"/>
+                            <field name="payment_service_provider"/>
+                            <field name="account_number"/>
+                            <field name="transaction_number"/>
+                        </group>
+                        <group>
+                            <field name="payment_coverage"/>
+                            <field name="remaining_amount"/>
+                            <field name="collected_amount"/>
+                        </group>
+                    </group>
+                    <!-- <footer>
+                        <button name="action_send_receipt"
+                                type="object"
+                                class="btn-primary"
+                                string="Confirm &amp; Send Receipt"/>
+                        <button special="cancel" string="Cancel"/>
+                    </footer> -->
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_einvoice_withholding_wizard" model="ir.ui.view">
+        <field name="name">einvoice.withholding.wizard.form</field>
+        <field name="model">einvoice.withholding.wizard</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="move_id"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="withholding_irn"/>
+                        <field name="pretax_amount" />
+                        <field name="withholding_amount" />
+                    </group>
+                    <footer>
+                        <button name="action_send_withholding"
+                                type="object"
+                                class="btn-primary"
+                                string="Confirm &amp; Send Withholding"/>
+                        <button special="cancel" string="Cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

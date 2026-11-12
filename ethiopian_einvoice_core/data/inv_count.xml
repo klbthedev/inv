@@ -1,0 +1,10 @@
+<odoo>
+    <record id="seq_einvoice_invoice_counter" model="ir.sequence">
+        <field name="name">E-Invoice Counter</field>
+        <field name="code">einvoice.invoice.counter</field>
+        <field name="padding">0</field>
+        <field name="number_increment">1</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+</odoo>

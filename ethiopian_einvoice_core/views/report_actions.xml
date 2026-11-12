@@ -1,0 +1,55 @@
+<odoo>
+    <record id="action_print_sales_receipt_server" model="ir.actions.server">
+        <field name="name">SMS Sales Receipt</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    for record in records:
+        action = record.action_sms_sales_receipt()
+        </field>
+    </record>
+
+    <record id="action_print_withholding_receipt_server" model="ir.actions.server">
+        <field name="name">SMS Withholding Receipt</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    for record in records:
+        action = record.action_sms_withholding_receipt()
+        </field>
+    </record>
+
+    <!-- Send Sales Receipt by Email -->
+    <record id="action_send_sales_receipt_email_server" model="ir.actions.server">
+        <field name="name">Send Sales Receipt by Email</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    for record in records:
+        record.action_send_sales_receipt_email()
+        </field>
+    </record>
+
+    <!-- Send Withholding Receipt by Email -->
+    <record id="action_send_withholding_receipt_email_server" model="ir.actions.server">
+        <field name="name">Send Withholding Receipt by Email</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">action</field>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    for record in records:
+        record.action_send_withholding_receipt_email()
+        </field>
+    </record>
+</odoo>

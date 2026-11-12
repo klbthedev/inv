@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_einvoice_config_tree" model="ir.ui.view">
+        <field name="name">einvoice.config.tree</field>
+        <field name="model">einvoice.config</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="company_id"/>
+                <field name="system_number"/>
+                <field name="environment"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_einvoice_config_form" model="ir.ui.view">
+        <field name="name">einvoice.config.form</field>
+        <field name="model">einvoice.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="company_id"/>
+                        <field name="system_number"/>
+                        <field name="environment"/>
+                        <field name="active"/>
+                    </group>
+                    <!-- <group string="Credentials">
+                        <field name="client_id"/>
+                        <field name="client_secret" password="True"/>
+                        <field name="api_key"/>
+                        <field name="seller_tin"/>
+                        <field name="vat_number"/>
+                        <field name="einvoice_callback_url"/>
+                    </group> -->
+                    <group string="Credentials">
+                        <field name="client_id" help="Stored securely outside the database. Re-enter only to update."/>
+                        <field name="client_secret" password="True" help="Stored securely outside the database. Re-enter only to update."/>
+                        <field name="api_key" help="Stored securely outside the database. Re-enter only to update."/>
+                        <field name="credentials_configured" readonly="1" string="Credentials Saved"/>
+                        <field name="seller_tin"/>
+                        <field name="vat_number"/>
+                        <field name="einvoice_callback_url"/>
+                    </group>
+                    <group string="Geo Info">
+                        <field name="region"/>
+                        <field name="zone"/>
+                        <field name="wereda"/>
+                    </group>
+                    <group string="System Configuration">
+                        <field name="system_type"/>
+                        <field name="source_system_type"/>
+                    </group>
+                    <group string="API Endpoints">
+                        <field name="sandbox_base_url"/>
+                        <field name="production_base_url"/>
+                    </group>
+                    <group string="Geo-Fencing">
+                        <field name="geo_fencing_mode"/>
+                        <field name="geo_fencing_radius" invisible="geo_fencing_mode != 'radius'"/>
+                        <field name="geo_fencing_latitude" invisible="geo_fencing_mode != 'radius'"/>
+                        <field name="geo_fencing_longitude" invisible="geo_fencing_mode != 'radius'"/>
+                        <field name="geo_fencing_country_geojson" invisible="geo_fencing_mode != 'country'"/>
+                    </group>
+                    <notebook>
+                        <page string="Tokens">
+                            <field name="token_ids" nolabel="1" readonly="1" create="0" delete="0">
+                                <list>
+                                    <field name="company_id"/>
+                                    <field name="expiry_datetime"/>
+                                    <field name="active"/>
+                                </list>
+                            </field>
+                            <p class="text-muted">
+                                Token credentials are stored securely outside the database.
+                            </p>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_einvoice_config" model="ir.actions.act_window">
+        <field name="name">E-Invoice Company Configuration</field>
+        <field name="res_model">einvoice.config</field>
+        <field name="view_mode">list,form</field>
+        <!-- <field name="view_id" ref="view_einvoice_company_config_form"/> -->
+        <!-- <field name="context">{'search_default_company_id': active_id}</field> -->
+    </record>
+    
+    <menuitem id="menu_einvoicing_root" name="E-Invoicing" parent="base.menu_administration" sequence="5"/>
+    
+    <menuitem id="menu_einvoice_company_config"
+              name="Company Configuration"
+              action="action_einvoice_config"
+              parent="menu_einvoicing_root"
+              sequence="10"/>
+    
+</odoo>
